@@ -24,12 +24,15 @@ This file can be placed on the same folder as your binary is, or in `/etc/github
 Let's see how we can create a new repo:
 
 ```sh
-github-cli my-repo
+github-cli create
 ```
 
 This command will create a new github repository following the rules defined on the configuration file.
 
 ```sh
+Please enter the repository name: github-cli
+Please enter the org name:
+
 INFO[0000] Creating repository...
 INFO[0001] Adding pull approve...
 INFO[0003] Adding teams to repository...
