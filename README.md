@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/hellofresh/github-cli.svg?branch=master)](https://travis-ci.org/hellofresh/phanes)
 [![Go Report Card](https://goreportcard.com/badge/github.com/hellofresh/github-cli)](https://goreportcard.com/report/github.com/hellofresh/phanes)
 
-> A CLI Tool that automates the creation of repositories
+> A CLI Tool to automate the creation of github repositories
 
 This is a simple, CLI tool that helps you to create github repositories. 
 It adds all required integrations, teams, webhooks, etc.. all based on a configuration file that you define.
