@@ -1,0 +1,39 @@
+# Defines the application log level
+LogLevel="debug"
+
+[pullapprove]
+    # Defines the pull approve organization
+    Token=""
+    # Defines the pull approve filename
+    filename="./.pullapprove.yml"
+    # Defines the pull approve branch
+    protectedBranchName="master"
+
+[github]
+    # Defines the github organization
+    Organization="yourOrg"
+
+    # Defines the github token
+    Token=""
+
+    # Defines permissions on the repo per team
+    Teams=[
+        #Example
+        {ID=1234, Permission='pull'},
+    ]
+
+    # Adds a set of labels when creating the repo
+    Labels=[
+        {Name='custom', Color='ad974f'}, 
+    ]
+
+    # Removes the default github's labels
+    RemoveDefaultLabels=true
+
+    # Defines webhooks that will be added
+    Webhooks=[
+        {Type="web", Config={url="http://example.com/webhook", content_type="json"}}
+    ]
+
+    # Defines branch protections
+    Protections={master=["code-review/pullapprove"]}

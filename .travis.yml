@@ -1,0 +1,25 @@
+language: go
+
+go:
+  - 1.x
+  - 1.7
+
+install:
+  - mkdir -p $GOPATH/bin
+  - make deps
+
+script:
+- make test
+
+before_deploy:
+- make
+
+deploy:
+  - provider: releases
+    api_key: ${GITHUB_TOKEN}
+    file: dist/github-cli*
+    skip_cleanup: true
+    file_glob: true
+    on:
+      repo: hellofresh/github-cli
+      tags: true
