@@ -1,7 +1,7 @@
 # Github CLI
 
-[![Build Status](https://travis-ci.org/hellofresh/phanes.svg?branch=master)](https://travis-ci.org/hellofresh/phanes)
-[![Go Report Card](https://goreportcard.com/badge/github.com/hellofresh/phanes)](https://goreportcard.com/report/github.com/hellofresh/phanes)
+[![Build Status](https://travis-ci.org/hellofresh/github-cli.svg?branch=master)](https://travis-ci.org/hellofresh/phanes)
+[![Go Report Card](https://goreportcard.com/badge/github.com/hellofresh/github-cli)](https://goreportcard.com/report/github.com/hellofresh/phanes)
 
 > A CLI Tool that automates the creation of repositories
 
