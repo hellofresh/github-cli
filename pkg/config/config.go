@@ -7,9 +7,10 @@ import (
 type (
 	// Spec represents the global app configuration
 	Spec struct {
-		Github      Github
-		PullApprove PullApprove
-		LogLevel    string
+		PublicKeyPath string
+		Github        Github
+		PullApprove   PullApprove
+		LogLevel      string
 	}
 
 	// PullApprove represents teh Pull Approve configurations
@@ -21,12 +22,13 @@ type (
 
 	// Github represents the github configurations
 	Github struct {
-		Organization string
-		Token        string
-		Teams        []*Team
-		Labels       []*Label
-		Webhooks     []*Webhook
-		Protections  map[string][]string
+		Organization  string
+		Token         string
+		Teams         []*Team
+		Collaborators []*Collaborator
+		Labels        []*Label
+		Webhooks      []*Webhook
+		Protections   map[string][]string
 		// RemoveDefaultLabels Remove GitHub's default labels?
 		RemoveDefaultLabels bool
 	}
@@ -34,6 +36,12 @@ type (
 	// Team represents a github team
 	Team struct {
 		ID         int
+		Permission string
+	}
+
+	// Collaborator represents a github collaborator
+	Collaborator struct {
+		Username   string
 		Permission string
 	}
 

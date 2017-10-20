@@ -1,6 +1,10 @@
 # Defines the application log level
 LogLevel="debug"
 
+# Where your public ssh key that is registered on Github is. By default it 
+# looks in your ssh folder for a file called `id_rsa`
+# PublicKeyPath = ~/.ssh/id_rsa
+
 [pullapprove]
     # Defines the pull approve organization
     Token=""
@@ -16,8 +20,11 @@ LogLevel="debug"
     # Defines the github token
     Token=""
 
-    # Defines permissions on the repo per team. The possible permission values are `pull`, `push` and `admin`
-    # and they are defined on github's API
+    # Defines permission specifies the permission to grant the user on this repository.
+	# Possible values are:
+	#     pull - team members can pull, but not push to or administer this repository
+	#     push - team members can pull and push, but not administer this repository
+	#     admin - team members can pull, push and administer this repository
     Teams=[
         #Example
         {ID=1234, Permission='pull'},

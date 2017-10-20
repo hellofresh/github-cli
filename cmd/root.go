@@ -1,16 +1,20 @@
 package cmd
 
 import (
+	"context"
 	"os"
 
+	"github.com/google/go-github/github"
 	"github.com/hellofresh/github-cli/pkg/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"golang.org/x/oauth2"
 )
 
 var (
 	cfgFile      string
 	globalConfig *config.Spec
+	githubClient *github.Client
 	version      string
 	// RootCmd is our main command
 	RootCmd = &cobra.Command{
@@ -41,14 +45,31 @@ var (
 
 			// Only log the warning severity or above.
 			log.SetLevel(lvl)
+
+			if globalConfig.Github.Token == "" {
+				log.Fatal("You must provide a github token")
+			}
+
+			ts := oauth2.StaticTokenSource(
+				&oauth2.Token{AccessToken: globalConfig.Github.Token},
+			)
+			tc := oauth2.NewClient(context.Background(), ts)
+			githubClient = github.NewClient(tc)
 		},
 	}
 
 	createRepoCmd = &cobra.Command{
-		Use:   "create",
+		Use:   "create-repo",
 		Short: "Creates a new github repository",
 		Long:  `Creates a new github repository based on the rules defined on your .github.toml`,
-		Run:   RunCreate,
+		Run:   RunCreateRepo,
+	}
+
+	createTestCmd = &cobra.Command{
+		Use:   "create-test",
+		Short: "Creates a new hellofresh hiring test",
+		Long:  `Creates a new hellofresh hiring test based on the rules defined on your .github.toml`,
+		Run:   RunCreateTestRepo,
 	}
 )
 
@@ -63,4 +84,5 @@ func init() {
 	createRepoCmd.Flags().BoolVar(&createRepoFlags.HasWebhooks, "add-webhooks", true, "Enables webhooks configurations")
 	createRepoCmd.Flags().BoolVar(&createRepoFlags.HasBranchProtections, "add-branch-protections", true, "Enables branch protections")
 	RootCmd.AddCommand(createRepoCmd)
+	RootCmd.AddCommand(createTestCmd)
 }
