@@ -20,7 +20,7 @@ LogLevel="debug"
     # Defines the github token
     Token=""
 
-    # Defines permission specifies the permission to grant the user on this repository.
+    # Defines permission specifies the permission to grant the team on this repository.
 	# Possible values are:
 	#     pull - team members can pull, but not push to or administer this repository
 	#     push - team members can pull and push, but not administer this repository
@@ -28,6 +28,12 @@ LogLevel="debug"
     Teams=[
         #Example
         {ID=1234, Permission='pull'},
+    ]
+
+    # Defines permission specifies the permission to grant the user on this repository.
+    Collaborators=[
+        #Example
+        {Username="example", Permission='push'},
     ]
 
     # Adds a set of labels when creating the repo
