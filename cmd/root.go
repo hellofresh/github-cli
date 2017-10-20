@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/fatih/color"
 	"github.com/google/go-github/github"
 	"github.com/hellofresh/github-cli/pkg/config"
 	log "github.com/sirupsen/logrus"
@@ -16,73 +17,105 @@ var (
 	globalConfig *config.Spec
 	githubClient *github.Client
 	version      string
+	token        string
+
 	// RootCmd is our main command
 	RootCmd = &cobra.Command{
-		Use:   "github-cli",
+		Use:   "github-cli [--config] [--token]",
 		Short: "HF Github is a cli tool to manage your github repositories",
 		Long: `A simple CLI tool to help you manage your github repositories.
 		Complete documentation is available at http://github.com/hellofresh/github-cli`,
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			var err error
+	}
 
-			globalConfig, err = config.Load(cfgFile)
-			if err != nil {
-				log.WithError(err).Error("Could not load the configurations")
-			}
-
-			// Log as JSON instead of the default ASCII formatter.
-			// log.SetFormatter(&log.JSONFormatter{})
-
-			// Output to stdout instead of the default stderr
-			// Can be any io.Writer, see below for File example
-			log.SetOutput(os.Stdout)
-
-			lvl, err := log.ParseLevel(globalConfig.LogLevel)
-			if err != nil {
-				log.WithError(err).Error("Couldn't parse the log level")
-				os.Exit(1)
-			}
-
-			// Only log the warning severity or above.
-			log.SetLevel(lvl)
-
-			if globalConfig.Github.Token == "" {
-				log.Fatal("You must provide a github token")
-			}
-
-			ts := oauth2.StaticTokenSource(
-				&oauth2.Token{AccessToken: globalConfig.Github.Token},
-			)
-			tc := oauth2.NewClient(context.Background(), ts)
-			githubClient = github.NewClient(tc)
-		},
+	// Repo commands
+	repoCmd = &cobra.Command{
+		Use:     "repo",
+		Aliases: []string{"re"},
 	}
 
 	createRepoCmd = &cobra.Command{
-		Use:   "create-repo",
-		Short: "Creates a new github repository",
-		Long:  `Creates a new github repository based on the rules defined on your .github.toml`,
-		Run:   RunCreateRepo,
+		Use:     "create",
+		Aliases: []string{"cr"},
+		Short:   "Creates a new github repository",
+		Long:    `Creates a new github repository based on the rules defined on your .github.toml`,
+		Run:     RunCreateRepo,
+	}
+
+	// Hiring tests commands
+	testsCmd = &cobra.Command{
+		Use:     "test",
+		Aliases: []string{"te"},
 	}
 
 	createTestCmd = &cobra.Command{
-		Use:   "create-test",
-		Short: "Creates a new hellofresh hiring test",
-		Long:  `Creates a new hellofresh hiring test based on the rules defined on your .github.toml`,
-		Run:   RunCreateTestRepo,
+		Use:     "create",
+		Aliases: []string{"ct"},
+		Short:   "Creates a new hellofresh hiring test",
+		Long:    `Creates a new hellofresh hiring test based on the rules defined on your .github.toml`,
+		Run:     RunCreateTestRepo,
+	}
+
+	// Unseat commands
+	unseatCmd = &cobra.Command{
+		Use:     "unseat",
+		Aliases: []string{"un"},
+		Short:   "Removes external collaborators from repositories",
+		Long:    `Removes external (people not in the organization) collaborators from repositories`,
+		Run:     RunUnseat,
 	}
 )
 
 func init() {
-	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is /etc/github/.github.toml)")
+	var err error
 
-	createRepoCmd.Flags().BoolVar(&createRepoFlags.Private, "private", true, "Is the repository private?")
-	createRepoCmd.Flags().BoolVar(&createRepoFlags.HasPullApprove, "add-pullapprove", true, "Enables pull approve")
-	createRepoCmd.Flags().BoolVar(&createRepoFlags.HasTeams, "add-teams", true, "Enable teams")
-	createRepoCmd.Flags().BoolVar(&createRepoFlags.HasLabels, "add-labels", true, "Enable labels")
-	createRepoCmd.Flags().BoolVar(&createRepoFlags.HasDefaultLabels, "add-default-labels", true, "Removes the default github labels")
-	createRepoCmd.Flags().BoolVar(&createRepoFlags.HasWebhooks, "add-webhooks", true, "Enables webhooks configurations")
-	createRepoCmd.Flags().BoolVar(&createRepoFlags.HasBranchProtections, "add-branch-protections", true, "Enables branch protections")
-	RootCmd.AddCommand(createRepoCmd)
-	RootCmd.AddCommand(createTestCmd)
+	globalConfig, err = config.Load(cfgFile)
+	if err != nil {
+		log.WithError(err).Error("Could not load the configurations")
+	}
+
+	log.SetOutput(os.Stdout)
+
+	lvl, err := log.ParseLevel(globalConfig.LogLevel)
+	if err != nil {
+		log.WithError(err).Error("Couldn't parse the log level")
+	}
+
+	// Only log the warning severity or above.
+	log.SetLevel(lvl)
+
+	if token != "" {
+		globalConfig.Github.Token = token
+		globalConfig.GithubTestOrg.Token = token
+	}
+
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: globalConfig.Github.Token},
+	)
+	tc := oauth2.NewClient(context.Background(), ts)
+	githubClient = github.NewClient(tc)
+}
+
+func init() {
+	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/github/.github.toml)")
+	RootCmd.PersistentFlags().StringVarP(&token, "token", "t", "", "config file (default is /etc/github/.github.toml)")
+
+	// Aggregates Root commands
+	RootCmd.AddCommand(repoCmd)
+	RootCmd.AddCommand(testsCmd)
+	RootCmd.AddCommand(unseatCmd)
+}
+
+func checkEmpty(value interface{}, msg string) {
+	switch v := value.(type) {
+	case error:
+		if v != nil {
+			color.Red(v.Error())
+			os.Exit(1)
+		}
+	case string:
+		if v == "" {
+			color.Red(msg)
+			os.Exit(1)
+		}
+	}
 }

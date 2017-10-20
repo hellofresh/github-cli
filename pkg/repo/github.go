@@ -7,63 +7,48 @@ import (
 	"github.com/hellofresh/github-cli/pkg/config"
 	"github.com/hellofresh/github-cli/pkg/pullapprove"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 )
 
 type (
-	// RepoCreateor is used as an aggregator of rules to setup your repository
-	RepoCreateor interface {
-		Create(opts *HelloFreshRepoOpt) error
-	}
-
-	// GithubRepo contains all the hellofresh repository creation rules for github
+	// GithubRepo contains all the hellofresh repository creation Optss for github
 	GithubRepo struct {
 		GithubClient *github.Client
 	}
 
-	// HelloFreshRepoOpt represents the repo creation options
-	HelloFreshRepoOpt struct {
-		Name              string
-		Org               string
-		Private           bool
-		PullApprove       *PullApproveRule
-		Teams             *TeamsRule
-		Collaborators     *CollaboratorsRule
-		Labels            *LabelsRule
-		Webhooks          *WebhooksRule
-		BranchProtections *BranchProtectionsRule
+	// GithubRepoOpts represents the repo creation options
+	GithubRepoOpts struct {
+		PullApprove       *PullApproveOpts
+		Teams             *TeamsOpts
+		Collaborators     *CollaboratorsOpts
+		Labels            *LabelsOpts
+		Webhooks          *WebhooksOpts
+		BranchProtections *BranchProtectionsOpts
 	}
 
-	PullApproveRule struct {
-		Enabled             bool
+	PullApproveOpts struct {
 		Client              *pullapprove.Client
 		Filename            string
 		ProtectedBranchName string
 	}
 
-	TeamsRule struct {
-		Enabled bool
-		Teams   []*config.Team
+	TeamsOpts struct {
+		Teams []*config.Team
 	}
 
-	CollaboratorsRule struct {
-		Enabled       bool
+	CollaboratorsOpts struct {
 		Collaborators []*config.Collaborator
 	}
 
-	LabelsRule struct {
-		Enabled             bool
+	LabelsOpts struct {
 		RemoveDefaultLabels bool
 		Labels              []*config.Label
 	}
 
-	WebhooksRule struct {
-		Enabled  bool
+	WebhooksOpts struct {
 		Webhooks []*config.Webhook
 	}
 
-	BranchProtectionsRule struct {
-		Enabled     bool
+	BranchProtectionsOpts struct {
 		Protections map[string][]string
 	}
 )
@@ -77,78 +62,19 @@ func NewGithub(githubClient *github.Client) *GithubRepo {
 	}
 }
 
-// Create aggregates all rules to create a repository with all necessary requirements
-func (c *GithubRepo) Create(opts *HelloFreshRepoOpt) error {
-	log.Info("Creating repository...")
-	err := c.createRepo(opts.Name, opts.Org, opts.Private)
-	if err != nil {
-		return errors.Wrap(err, "could not create repository")
-	}
-
-	if opts.PullApprove != nil && opts.PullApprove.Enabled {
-		log.Info("Adding pull approve...")
-		err = c.addPullApprove(opts.Name, opts.Org, opts.PullApprove)
-		if err != nil {
-			return errors.Wrap(err, "could not add pull approve")
-		}
-	}
-
-	if opts.Teams != nil && opts.Teams.Enabled {
-		log.Info("Adding teams to repository...")
-		err = c.addTeamsToRepo(opts.Name, opts.Org, opts.Teams)
-		if err != nil {
-			return errors.Wrap(err, "could add teams to repository")
-		}
-	}
-
-	if opts.Collaborators != nil && opts.Collaborators.Enabled {
-		log.Info("Adding collaborators to repository...")
-		err = c.addCollaborators(opts.Name, opts.Org, opts.Collaborators)
-		if err != nil {
-			return errors.Wrap(err, "could not add collaborators to repository")
-		}
-	}
-
-	if opts.Labels != nil && opts.Labels.Enabled {
-		log.Info("Adding labels to repository...")
-		err = c.addLabelsToRepo(opts.Name, opts.Org, opts.Labels)
-		if err != nil {
-			return errors.Wrap(err, "could add labels to repository")
-		}
-	}
-
-	if opts.Webhooks != nil && opts.Webhooks.Enabled {
-		log.Info("Adding webhooks to repository...")
-		err = c.addWebhooksToRepo(opts.Name, opts.Org, opts.Webhooks)
-		if err != nil {
-			return errors.Wrap(err, "could add webhooks to repository")
-		}
-	}
-
-	if opts.BranchProtections != nil && opts.BranchProtections.Enabled {
-		log.Info("Adding branch protections to repository...")
-		err = c.addBranchProtections(opts.Name, opts.Org, opts.BranchProtections)
-		if err != nil {
-			return errors.Wrap(err, "could add branch protections to repository")
-		}
-	}
-
-	log.Info("Repository created!")
-	return nil
-}
-
-func (c *GithubRepo) createRepo(name string, org string, private bool) error {
+func (c *GithubRepo) CreateRepo(name string, description string, org string, private bool) error {
 	repo := &github.Repository{
-		Name:      github.String(name),
-		Private:   github.Bool(private),
-		HasIssues: github.Bool(true),
+		Name:        github.String(name),
+		Description: github.String(description),
+		Private:     github.Bool(private),
+		HasIssues:   github.Bool(true),
 	}
 
 	_, _, err := c.GithubClient.Repositories.Create(ctx, org, repo)
 	return err
 }
 
-func (c *GithubRepo) addPullApprove(repo string, org string, opts *PullApproveRule) error {
+func (c *GithubRepo) AddPullApprove(repo string, org string, opts *PullApproveOpts) error {
 	if opts.Client == nil {
 		return errors.New("Cannot add pull approve, since the client is nil")
 	}
@@ -171,7 +97,7 @@ func (c *GithubRepo) addPullApprove(repo string, org string, opts *PullApproveRu
 	return nil
 }
 
-func (c *GithubRepo) addTeamsToRepo(repo string, org string, opts *TeamsRule) error {
+func (c *GithubRepo) AddTeamsToRepo(repo string, org string, opts *TeamsOpts) error {
 	var err error
 
 	for _, team := range opts.Teams {
@@ -185,7 +111,7 @@ func (c *GithubRepo) addTeamsToRepo(repo string, org string, opts *TeamsRule) er
 	return err
 }
 
-func (c *GithubRepo) addLabelsToRepo(repo string, org string, opts *LabelsRule) error {
+func (c *GithubRepo) AddLabelsToRepo(repo string, org string, opts *LabelsOpts) error {
 	var err error
 	defaultLabels := []string{"bug", "duplicate", "enhancement", "help wanted", "invalid", "question", "wontfix", "good first issue"}
 
@@ -207,7 +133,7 @@ func (c *GithubRepo) addLabelsToRepo(repo string, org string, opts *LabelsRule) 
 	return err
 }
 
-func (c *GithubRepo) addWebhooksToRepo(repo string, org string, opts *WebhooksRule) error {
+func (c *GithubRepo) AddWebhooksToRepo(repo string, org string, opts *WebhooksOpts) error {
 	var err error
 
 	for _, webhook := range opts.Webhooks {
@@ -221,7 +147,7 @@ func (c *GithubRepo) addWebhooksToRepo(repo string, org string, opts *WebhooksRu
 	return err
 }
 
-func (c *GithubRepo) addBranchProtections(repo string, org string, opts *BranchProtectionsRule) error {
+func (c *GithubRepo) AddBranchProtections(repo string, org string, opts *BranchProtectionsOpts) error {
 	var err error
 
 	for branch, contexts := range opts.Protections {
@@ -236,7 +162,7 @@ func (c *GithubRepo) addBranchProtections(repo string, org string, opts *BranchP
 	return err
 }
 
-func (c *GithubRepo) addCollaborators(repo string, org string, opts *CollaboratorsRule) error {
+func (c *GithubRepo) AddCollaborators(repo string, org string, opts *CollaboratorsOpts) error {
 	var err error
 
 	for _, collaborator := range opts.Collaborators {

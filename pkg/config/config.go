@@ -9,6 +9,7 @@ type (
 	Spec struct {
 		PublicKeyPath string
 		Github        Github
+		GithubTestOrg Github
 		PullApprove   PullApprove
 		LogLevel      string
 	}
