@@ -21,38 +21,12 @@ After you have *github-cli* up and running we can create our first repository.
 First of all we have to create a configuration file that will customize how our repositories will be created. You can have a look on our [example](.github.sample.toml).
 This file can be placed on the same folder as your binary is, or in your home directory and it should be named `.github.toml` (You can also use it as `yaml` or `json`).
 
-Let's see how we can create a new repo:
+### Commands
 
-```sh
-github-cli create
-```
-
-This command will create a new github repository following the rules defined on the configuration file.
-
-```sh
-Please enter the repository name: github-cli
-Please enter the org name:
-
-INFO[0000] Creating repository...
-INFO[0001] Adding pull approve...
-INFO[0003] Adding teams to repository...
-INFO[0004] Adding labels to repository...
-INFO[0007] Adding branch protections to repository...
-INFO[0007] Repository created!
-```
-
-## Flags
-
-You can always customize the repo creation with flags:
-
-```
---add-branch-protections   Enables branch protections (default true)
---add-default-labels       Removes the default github labels (default true)
---add-lables               Enable labels (default true)
---add-pullapprove          Enables pull approve (default true)
---add-teams                Enable teams (default true)
---add-webhooks             Enables webhooks configurations (default true)
-```
+| Command                  | Description                          |
+|--------------------------|--------------------------------------|
+| `github-cli create-repo` | Creates a new github repository      |
+| `github-cli create-test` | Creates a new hellofresh hiring test |
 
 ## Contributing
 
