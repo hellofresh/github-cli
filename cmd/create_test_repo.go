@@ -6,55 +6,70 @@ import (
 	"os"
 	"os/user"
 
-	"github.com/deiwin/interact"
+	"github.com/fatih/color"
 	"github.com/hellofresh/github-cli/pkg/config"
 	"github.com/hellofresh/github-cli/pkg/repo"
-	log "github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
+type (
+	// CreateTestRepoFlags are the flags for the create a hiring test repository command
+	CreateTestRepoFlags struct {
+		Org       string
+		Candidate string
+		TestRepo  string
+	}
+)
+
+var createTestRepoFlags CreateTestRepoFlags
+
+func init() {
+	testsCmd.AddCommand(createTestCmd)
+
+	createTestCmd.Flags().StringVarP(&createTestRepoFlags.TestRepo, "test-repo", "r", "", "The name of the test repository to clone from")
+	createTestCmd.Flags().StringVarP(&createTestRepoFlags.Candidate, "username", "u", "", "The github's name of the candidate")
+	createTestCmd.Flags().StringVarP(&createTestRepoFlags.Org, "organization", "o", "", "Github's organization")
+}
+
 // RunCreateTestRepo runs the command to create a new hiring test repository
 func RunCreateTestRepo(cmd *cobra.Command, args []string) {
 	var err error
-	actor := interact.NewActor(os.Stdin, os.Stdout)
-	org, err := actor.PromptOptional("Please enter the org name", globalConfig.Github.Organization, checkNotEmpty)
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	candidate, err := actor.Prompt("GitHub username of the candidate", checkNotEmpty)
-	if err != nil {
-		log.Fatal(err)
+	org := createTestRepoFlags.Org
+	if org == "" {
+		org = globalConfig.Github.Organization
 	}
+	checkEmpty(org, "Please provide an organization")
 
-	testRepo, err := actor.Prompt("Name of the repo with the test", checkNotEmpty)
-	if err != nil {
-		log.Fatal(err)
-	}
+	candidate := createTestRepoFlags.Candidate
+	checkEmpty(org, "Please provide a candidate username")
+
+	testRepo := createTestRepoFlags.TestRepo
+	checkEmpty(org, "Please provide a test repository")
 
 	target := fmt.Sprintf("%s-%s", candidate, testRepo)
-	opts := &repo.HelloFreshRepoOpt{
-		Name:    target,
-		Org:     org,
-		Private: true,
-		Collaborators: &repo.CollaboratorsRule{
-			Enabled: true,
-			Collaborators: []*config.Collaborator{
-				&config.Collaborator{
-					Username:   candidate,
-					Permission: "push",
-				},
+
+	creator := repo.NewGithub(githubClient)
+
+	color.White("Creating repository...")
+	err = creator.CreateRepo(target, "", org, true)
+	checkEmpty(err, "Could not create github repo for candidate")
+
+	color.White("Adding collaborators to repository...")
+	opts := &repo.CollaboratorsOpts{
+		Collaborators: []*config.Collaborator{
+			&config.Collaborator{
+				Username:   candidate,
+				Permission: "push",
 			},
 		},
 	}
-	creator := repo.NewGithub(githubClient)
-	err = creator.Create(opts)
-	if err != nil {
-		log.WithError(err).Fatal("Could not create github repo for candidate")
-	}
+	err = creator.AddCollaborators(target, org, opts)
+	checkEmpty(errors.Wrap(err, "could not add collaborators to repository"), "")
 
 	if globalConfig.PublicKeyPath == "" {
 		user, _ := user.Current()
@@ -62,40 +77,30 @@ func RunCreateTestRepo(cmd *cobra.Command, args []string) {
 	}
 
 	sshKey, err := ioutil.ReadFile(globalConfig.PublicKeyPath)
-	if err != nil {
-		log.WithError(err).Fatal("Error reading public key")
-	}
+	checkEmpty(err, "Error reading public key")
 
 	authMethod, err := ssh.NewPublicKeys("git", []byte(sshKey), "")
-	if err != nil {
-		log.WithError(err).Fatal("Error when creating public keys")
-	}
+	checkEmpty(err, "Error when creating public keys")
 
-	log.Info("Cloning repository...")
+	color.White("Cloning repository...")
 	r, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
 		Auth:     authMethod,
 		Progress: os.Stdout,
 		URL:      fmt.Sprintf("git@github.com:%s/%s", org, testRepo),
 	})
-	if err != nil {
-		log.WithError(err).Fatal("Error cloning to repository")
-	}
+	checkEmpty(err, "Error cloning to repository")
 
-	log.Info("Changing remote...")
+	color.White("Changing remote...")
 	remote, err := r.Remote(git.DefaultRemoteName)
-	if err != nil {
-		log.WithError(err).Fatal("Error changing remote for repository")
-	}
+	checkEmpty(err, "Error changing remote for repository")
 
-	log.Info("Pushing changes...")
+	color.White("Pushing changes...")
 	remote.Config().URLs = []string{fmt.Sprintf("git@github.com:%s/%s", org, target)}
 	err = remote.Push(&git.PushOptions{
 		RemoteName: git.DefaultRemoteName,
 		Progress:   os.Stdout,
 	})
-	if err != nil {
-		log.WithError(err).Fatal("Error pushing to repository")
-	}
+	checkEmpty(err, "Error pushing to repository")
 
-	log.Infof("Done! Test for %s is created", candidate)
+	color.Green("Done! Hiring test for %s is created", candidate)
 }
