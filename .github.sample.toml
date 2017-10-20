@@ -16,7 +16,8 @@ LogLevel="debug"
     # Defines the github token
     Token=""
 
-    # Defines permissions on the repo per team
+    # Defines permissions on the repo per team. The possible permission values are `pull`, `push` and `admin`
+    # and they are defined on github's API
     Teams=[
         #Example
         {ID=1234, Permission='pull'},

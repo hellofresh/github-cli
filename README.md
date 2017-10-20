@@ -19,7 +19,7 @@ Just place the binary in your $PATH and you are good to go.
 
 After you have *github-cli* up and running we can create our first repository.
 First of all we have to create a configuration file that will customize how our repositories will be created. You can have a look on our [example](.github.sample.toml).
-This file can be placed on the same folder as your binary is, or in `/etc/github` and it should be named `.github.toml` (You can also use it as `yaml` or `json`).
+This file can be placed on the same folder as your binary is, or in your home directory and it should be named `.github.toml` (You can also use it as `yaml` or `json`).
 
 Let's see how we can create a new repo:
 
