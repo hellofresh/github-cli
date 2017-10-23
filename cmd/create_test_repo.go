@@ -60,12 +60,10 @@ func RunCreateTestRepo(cmd *cobra.Command, args []string) {
 	checkEmpty(err, "Could not create github repo for candidate")
 
 	color.White("Adding collaborators to repository...")
-	opts := &repo.CollaboratorsOpts{
-		Collaborators: []*config.Collaborator{
-			&config.Collaborator{
-				Username:   candidate,
-				Permission: "push",
-			},
+	opts := []*config.Collaborator{
+		&config.Collaborator{
+			Username:   candidate,
+			Permission: "push",
 		},
 	}
 	err = creator.AddCollaborators(target, org, opts)

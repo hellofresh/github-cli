@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/google/go-github/github"
 	"github.com/hellofresh/github-cli/pkg/config"
@@ -18,42 +19,38 @@ type (
 	// GithubRepoOpts represents the repo creation options
 	GithubRepoOpts struct {
 		PullApprove       *PullApproveOpts
-		Teams             *TeamsOpts
-		Collaborators     *CollaboratorsOpts
+		Teams             []*config.Team
+		Collaborators     []*config.Collaborator
 		Labels            *LabelsOpts
-		Webhooks          *WebhooksOpts
-		BranchProtections *BranchProtectionsOpts
+		Webhooks          []*config.Webhook
+		BranchProtections config.BranchProtections
 	}
 
+	// PullApproveOpts represents pull approve options
 	PullApproveOpts struct {
 		Client              *pullapprove.Client
 		Filename            string
 		ProtectedBranchName string
 	}
 
-	TeamsOpts struct {
-		Teams []*config.Team
-	}
-
-	CollaboratorsOpts struct {
-		Collaborators []*config.Collaborator
-	}
-
+	// LabelsOpts represents label options
 	LabelsOpts struct {
 		RemoveDefaultLabels bool
 		Labels              []*config.Label
 	}
-
-	WebhooksOpts struct {
-		Webhooks []*config.Webhook
-	}
-
-	BranchProtectionsOpts struct {
-		Protections map[string][]string
-	}
 )
 
-var ctx = context.Background()
+var (
+	ctx = context.Background()
+	// ErrRepositoryAlreadyExists is used when the repository already exists
+	ErrRepositoryAlreadyExists = errors.New("github repository already exists")
+	// ErrPullApproveFileAlreadyExists is used when the pull approve file already exists
+	ErrPullApproveFileAlreadyExists = errors.New("github pull approve file already exists")
+	// ErrLabelNotFound is used when a label is not found
+	ErrLabelNotFound = errors.New("github label does not exist")
+	// ErrWebhookAlreadyExist is used when a webhook already exists
+	ErrWebhookAlreadyExist = errors.New("github webhook already exists")
+)
 
 // NewGithub creates a new instance of Client
 func NewGithub(githubClient *github.Client) *GithubRepo {
@@ -62,6 +59,7 @@ func NewGithub(githubClient *github.Client) *GithubRepo {
 	}
 }
 
+// CreateRepo creates a github repository
 func (c *GithubRepo) CreateRepo(name string, description string, org string, private bool) error {
 	repo := &github.Repository{
 		Name:        github.String(name),
@@ -71,10 +69,18 @@ func (c *GithubRepo) CreateRepo(name string, description string, org string, pri
 	}
 
 	_, _, err := c.GithubClient.Repositories.Create(ctx, org, repo)
+	if githubError, ok := err.(*github.ErrorResponse); ok {
+		if githubError.Response.StatusCode == http.StatusUnprocessableEntity {
+			err = errors.Wrap(ErrRepositoryAlreadyExists, "repository already exists")
+		}
+	}
+
 	return err
 }
 
+// AddPullApprove adds a file to the github repository and calls pull approve API to register the new repo
 func (c *GithubRepo) AddPullApprove(repo string, org string, opts *PullApproveOpts) error {
+	var err error
 	if opts.Client == nil {
 		return errors.New("Cannot add pull approve, since the client is nil")
 	}
@@ -84,8 +90,12 @@ func (c *GithubRepo) AddPullApprove(repo string, org string, opts *PullApproveOp
 		Content: []byte("extends: hellofresh"),
 		Branch:  github.String(opts.ProtectedBranchName),
 	}
-	_, _, err := c.GithubClient.Repositories.CreateFile(ctx, org, repo, opts.Filename, fileOpt)
-	if err != nil {
+	_, _, err = c.GithubClient.Repositories.CreateFile(ctx, org, repo, opts.Filename, fileOpt)
+	if githubError, ok := err.(*github.ErrorResponse); ok {
+		if githubError.Response.StatusCode == http.StatusUnprocessableEntity {
+			return errors.Wrap(ErrPullApproveFileAlreadyExists, "pull approve file already exists")
+		}
+	} else {
 		return err
 	}
 
@@ -94,13 +104,14 @@ func (c *GithubRepo) AddPullApprove(repo string, org string, opts *PullApproveOp
 		return err
 	}
 
-	return nil
+	return err
 }
 
-func (c *GithubRepo) AddTeamsToRepo(repo string, org string, opts *TeamsOpts) error {
+// AddTeamsToRepo adds an slice of teams and their permissions to a repository
+func (c *GithubRepo) AddTeamsToRepo(repo string, org string, teams []*config.Team) error {
 	var err error
 
-	for _, team := range opts.Teams {
+	for _, team := range teams {
 		opt := &github.OrganizationAddTeamRepoOptions{
 			Permission: team.Permission,
 		}
@@ -111,6 +122,8 @@ func (c *GithubRepo) AddTeamsToRepo(repo string, org string, opts *TeamsOpts) er
 	return err
 }
 
+// AddLabelsToRepo adds an slice of labels to the repository. Optionally this can also remove github's
+// default labels
 func (c *GithubRepo) AddLabelsToRepo(repo string, org string, opts *LabelsOpts) error {
 	var err error
 	defaultLabels := []string{"bug", "duplicate", "enhancement", "help wanted", "invalid", "question", "wontfix", "good first issue"}
@@ -127,30 +140,42 @@ func (c *GithubRepo) AddLabelsToRepo(repo string, org string, opts *LabelsOpts) 
 	if opts.RemoveDefaultLabels {
 		for _, label := range defaultLabels {
 			_, err = c.GithubClient.Issues.DeleteLabel(ctx, org, repo, label)
+			if githubError, ok := err.(*github.ErrorResponse); ok {
+				if githubError.Response.StatusCode == http.StatusNotFound {
+					err = errors.Wrap(ErrLabelNotFound, "label not found")
+				}
+			}
 		}
 	}
 
 	return err
 }
 
-func (c *GithubRepo) AddWebhooksToRepo(repo string, org string, opts *WebhooksOpts) error {
+// AddWebhooksToRepo adds an slice of webhooks to the repository
+func (c *GithubRepo) AddWebhooksToRepo(repo string, org string, webhooks []*config.Webhook) error {
 	var err error
 
-	for _, webhook := range opts.Webhooks {
+	for _, webhook := range webhooks {
 		hook := &github.Hook{
 			Name:   github.String(webhook.Type),
 			Config: webhook.Config,
 		}
 		_, _, err = c.GithubClient.Repositories.CreateHook(ctx, org, repo, hook)
+		if githubError, ok := err.(*github.ErrorResponse); ok {
+			if githubError.Response.StatusCode == http.StatusUnprocessableEntity {
+				err = errors.Wrap(ErrWebhookAlreadyExist, "webhook already exists")
+			}
+		}
 	}
 
 	return err
 }
 
-func (c *GithubRepo) AddBranchProtections(repo string, org string, opts *BranchProtectionsOpts) error {
+// AddBranchProtections adds an slice of branch protections to the repository
+func (c *GithubRepo) AddBranchProtections(repo string, org string, protections config.BranchProtections) error {
 	var err error
 
-	for branch, contexts := range opts.Protections {
+	for branch, contexts := range protections {
 		pr := &github.ProtectionRequest{
 			RequiredStatusChecks: &github.RequiredStatusChecks{
 				Contexts: contexts,
@@ -162,10 +187,11 @@ func (c *GithubRepo) AddBranchProtections(repo string, org string, opts *BranchP
 	return err
 }
 
-func (c *GithubRepo) AddCollaborators(repo string, org string, opts *CollaboratorsOpts) error {
+// AddCollaborators adds an slice of collaborators and their permissions to the repository
+func (c *GithubRepo) AddCollaborators(repo string, org string, collaborators []*config.Collaborator) error {
 	var err error
 
-	for _, collaborator := range opts.Collaborators {
+	for _, collaborator := range collaborators {
 		opt := &github.RepositoryAddCollaboratorOptions{
 			Permission: collaborator.Permission,
 		}
