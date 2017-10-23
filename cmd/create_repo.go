@@ -67,15 +67,9 @@ func RunCreateRepo(cmd *cobra.Command, args []string) {
 			RemoveDefaultLabels: globalConfig.Github.RemoveDefaultLabels,
 			Labels:              globalConfig.Github.Labels,
 		},
-		Teams: &repo.TeamsOpts{
-			Teams: globalConfig.Github.Teams,
-		},
-		Webhooks: &repo.WebhooksOpts{
-			Webhooks: globalConfig.Github.Webhooks,
-		},
-		BranchProtections: &repo.BranchProtectionsOpts{
-			Protections: globalConfig.Github.Protections,
-		},
+		Teams:             globalConfig.Github.Teams,
+		Webhooks:          globalConfig.Github.Webhooks,
+		BranchProtections: globalConfig.Github.Protections,
 	}
 
 	creator := repo.NewGithub(githubClient)
