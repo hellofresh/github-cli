@@ -29,10 +29,13 @@ type (
 		Collaborators []*Collaborator
 		Labels        []*Label
 		Webhooks      []*Webhook
-		Protections   map[string][]string
+		Protections   BranchProtections
 		// RemoveDefaultLabels Remove GitHub's default labels?
 		RemoveDefaultLabels bool
 	}
+
+	// BranchProtections represents github's branch protections
+	BranchProtections map[string][]string
 
 	// Team represents a github team
 	Team struct {

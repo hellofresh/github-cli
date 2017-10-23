@@ -82,18 +82,26 @@ func RunCreateRepo(cmd *cobra.Command, args []string) {
 
 	color.White("Creating repository...")
 	err = creator.CreateRepo(name, description, org, createRepoFlags.Private)
-	checkEmpty(errors.Wrap(err, "could not create repository"), "")
+	if errors.Cause(err) == repo.ErrRepositoryAlreadyExists {
+		color.Cyan("Repository already exists. Trying to normalize it...")
+	} else {
+		checkEmpty(errors.Wrap(err, "could not create repository"), "")
+	}
 
 	if createRepoFlags.HasPullApprove {
 		color.White("Adding pull approve...")
 		err = creator.AddPullApprove(name, org, opts.PullApprove)
-		checkEmpty(errors.Wrap(err, "could not add pull approve"), "")
+		if errors.Cause(err) == repo.ErrPullApproveFileAlreadyExists {
+			color.Cyan("Pull approve already exists, moving on...")
+		} else {
+			checkEmpty(errors.Wrap(err, "could not add pull approve"), "")
+		}
 	}
 
 	if createRepoFlags.HasTeams {
 		color.White("Adding teams to repository...")
 		err = creator.AddTeamsToRepo(name, org, opts.Teams)
-		checkEmpty(errors.Wrap(err, "could add teams to repository"), "")
+		checkEmpty(errors.Wrap(err, "could not add teams to repository"), "")
 	}
 
 	if createRepoFlags.HasCollaborators {
@@ -105,13 +113,21 @@ func RunCreateRepo(cmd *cobra.Command, args []string) {
 	if createRepoFlags.HasLabels {
 		color.White("Adding labels to repository...")
 		err = creator.AddLabelsToRepo(name, org, opts.Labels)
-		checkEmpty(errors.Wrap(err, "could add labels to repository"), "")
+		if errors.Cause(err) == repo.ErrLabelNotFound {
+			color.Cyan("Default labels does not exists, moving on...")
+		} else {
+			checkEmpty(errors.Wrap(err, "could not add labels to repository"), "")
+		}
 	}
 
 	if createRepoFlags.HasWebhooks {
 		color.White("Adding webhooks to repository...")
 		err = creator.AddWebhooksToRepo(name, org, opts.Webhooks)
-		checkEmpty(errors.Wrap(err, "could add webhooks to repository"), "")
+		if errors.Cause(err) == repo.ErrWebhookAlreadyExist {
+			color.Cyan("Webhook already exists, moving on...")
+		} else {
+			checkEmpty(errors.Wrap(err, "could add webhooks to repository"), "")
+		}
 	}
 
 	if createRepoFlags.HasBranchProtections {
