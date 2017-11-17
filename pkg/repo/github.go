@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/hellofresh/github-cli/pkg/config"
@@ -44,6 +45,8 @@ var (
 	ctx = context.Background()
 	// ErrRepositoryAlreadyExists is used when the repository already exists
 	ErrRepositoryAlreadyExists = errors.New("github repository already exists")
+	// ErrRepositoryLimitExceeded is used when the repository limit is exceeded
+	ErrRepositoryLimitExceeded = errors.New("limit for private repos on this account is exceeded")
 	// ErrPullApproveFileAlreadyExists is used when the pull approve file already exists
 	ErrPullApproveFileAlreadyExists = errors.New("github pull approve file already exists")
 	// ErrLabelNotFound is used when a label is not found
@@ -60,7 +63,7 @@ func NewGithub(githubClient *github.Client) *GithubRepo {
 }
 
 // CreateRepo creates a github repository
-func (c *GithubRepo) CreateRepo(name string, description string, org string, private bool) error {
+func (c *GithubRepo) CreateRepo(name string, description string, org string, private bool) (*github.Repository, error) {
 	repo := &github.Repository{
 		Name:        github.String(name),
 		Description: github.String(description),
@@ -68,14 +71,16 @@ func (c *GithubRepo) CreateRepo(name string, description string, org string, pri
 		HasIssues:   github.Bool(true),
 	}
 
-	_, _, err := c.GithubClient.Repositories.Create(ctx, org, repo)
+	ghRepo, _, err := c.GithubClient.Repositories.Create(ctx, org, repo)
 	if githubError, ok := err.(*github.ErrorResponse); ok {
-		if githubError.Response.StatusCode == http.StatusUnprocessableEntity {
+		if strings.Contains(githubError.Message, "Visibility can't be private") {
+			err = errors.Wrap(ErrRepositoryLimitExceeded, "limit for private repos on this account is exceeded")
+		} else if githubError.Response.StatusCode == http.StatusUnprocessableEntity {
 			err = errors.Wrap(ErrRepositoryAlreadyExists, "repository already exists")
 		}
 	}
 
-	return err
+	return ghRepo, err
 }
 
 // AddPullApprove adds a file to the github repository and calls pull approve API to register the new repo
