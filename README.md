@@ -34,6 +34,7 @@ github-cli [command] [--flags]
 | `github-cli repo create [--flags]` | Creates a new github repository      |
 | `github-cli test create [--flags]` | Creates a new hellofresh hiring test |
 | `github-cli unseat [--flags]`      | Removes external collaborators from repositories |
+| `github-cli version`               | Prints the version information |
 
 ## Contributing
 
