@@ -16,7 +16,6 @@ var (
 	cfgFile      string
 	globalConfig *config.Spec
 	githubClient *github.Client
-	version      string
 	token        string
 
 	// RootCmd is our main command
@@ -53,15 +52,6 @@ var (
 		Short:   "Creates a new hellofresh hiring test",
 		Long:    `Creates a new hellofresh hiring test based on the rules defined on your .github.toml`,
 		Run:     RunCreateTestRepo,
-	}
-
-	// Unseat commands
-	unseatCmd = &cobra.Command{
-		Use:     "unseat",
-		Aliases: []string{"un"},
-		Short:   "Removes external collaborators from repositories",
-		Long:    `Removes external (people not in the organization) collaborators from repositories`,
-		Run:     RunUnseat,
 	}
 )
 
@@ -100,6 +90,7 @@ func init() {
 	RootCmd.PersistentFlags().StringVarP(&token, "token", "t", "", "config file (default is /etc/github/.github.toml)")
 
 	// Aggregates Root commands
+	RootCmd.AddCommand(versionCmd)
 	RootCmd.AddCommand(repoCmd)
 	RootCmd.AddCommand(testsCmd)
 	RootCmd.AddCommand(unseatCmd)

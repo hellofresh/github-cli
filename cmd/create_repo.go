@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/fatih/color"
 	"github.com/hellofresh/github-cli/pkg/pullapprove"
 	"github.com/hellofresh/github-cli/pkg/repo"
@@ -75,7 +77,7 @@ func RunCreateRepo(cmd *cobra.Command, args []string) {
 	creator := repo.NewGithub(githubClient)
 
 	color.White("Creating repository...")
-	err = creator.CreateRepo(name, description, org, createRepoFlags.Private)
+	ghRepo, err := creator.CreateRepo(name, description, org, createRepoFlags.Private)
 	if errors.Cause(err) == repo.ErrRepositoryAlreadyExists {
 		color.Cyan("Repository already exists. Trying to normalize it...")
 	} else {
@@ -130,6 +132,6 @@ func RunCreateRepo(cmd *cobra.Command, args []string) {
 		checkEmpty(errors.Wrap(err, "could add branch protections to repository"), "")
 	}
 
-	color.Green("Repository created!")
+	color.Green(fmt.Sprintf("Repository created! \n Here is how to access it %s", *ghRepo.URL))
 	checkEmpty(err, "Could not create github repo")
 }
