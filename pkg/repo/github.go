@@ -12,7 +12,7 @@ import (
 )
 
 type (
-	// GithubRepo contains all the hellofresh repository creation Optss for github
+	// GithubRepo contains all the hellofresh repository creation Opts for github
 	GithubRepo struct {
 		GithubClient *github.Client
 	}
@@ -53,6 +53,8 @@ var (
 	ErrLabelNotFound = errors.New("github label does not exist")
 	// ErrWebhookAlreadyExist is used when a webhook already exists
 	ErrWebhookAlreadyExist = errors.New("github webhook already exists")
+	// ErrOrganizationNotFound is used when a webhook already exists
+	ErrOrganizationNotFound = errors.New("you must specify an organization to use this functionality")
 )
 
 // NewGithub creates a new instance of Client
@@ -67,9 +69,9 @@ func (c *GithubRepo) CreateRepo(org string, repoOpts *github.Repository) (*githu
 	ghRepo, _, err := c.GithubClient.Repositories.Create(ctx, org, repoOpts)
 	if githubError, ok := err.(*github.ErrorResponse); ok {
 		if strings.Contains(githubError.Message, "Visibility can't be private") {
-			err = errors.Wrap(ErrRepositoryLimitExceeded, "limit for private repos on this account is exceeded")
+			err = ErrRepositoryLimitExceeded
 		} else if githubError.Response.StatusCode == http.StatusUnprocessableEntity {
-			err = errors.Wrap(ErrRepositoryAlreadyExists, "repository already exists")
+			err = ErrRepositoryAlreadyExists
 		}
 	}
 
@@ -91,7 +93,7 @@ func (c *GithubRepo) AddPullApprove(repo string, org string, opts *PullApproveOp
 	_, _, err = c.GithubClient.Repositories.CreateFile(ctx, org, repo, opts.Filename, fileOpt)
 	if githubError, ok := err.(*github.ErrorResponse); ok {
 		if githubError.Response.StatusCode == http.StatusUnprocessableEntity {
-			return errors.Wrap(ErrPullApproveFileAlreadyExists, "pull approve file already exists")
+			return ErrPullApproveFileAlreadyExists
 		}
 	} else {
 		return err
@@ -108,6 +110,10 @@ func (c *GithubRepo) AddPullApprove(repo string, org string, opts *PullApproveOp
 // AddTeamsToRepo adds an slice of teams and their permissions to a repository
 func (c *GithubRepo) AddTeamsToRepo(repo string, org string, teams []*config.Team) error {
 	var err error
+
+	if org == "" {
+		return ErrOrganizationNotFound
+	}
 
 	for _, team := range teams {
 		opt := &github.OrganizationAddTeamRepoOptions{
