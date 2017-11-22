@@ -63,15 +63,8 @@ func NewGithub(githubClient *github.Client) *GithubRepo {
 }
 
 // CreateRepo creates a github repository
-func (c *GithubRepo) CreateRepo(name string, description string, org string, private bool) (*github.Repository, error) {
-	repo := &github.Repository{
-		Name:        github.String(name),
-		Description: github.String(description),
-		Private:     github.Bool(private),
-		HasIssues:   github.Bool(true),
-	}
-
-	ghRepo, _, err := c.GithubClient.Repositories.Create(ctx, org, repo)
+func (c *GithubRepo) CreateRepo(org string, repoOpts *github.Repository) (*github.Repository, error) {
+	ghRepo, _, err := c.GithubClient.Repositories.Create(ctx, org, repoOpts)
 	if githubError, ok := err.(*github.ErrorResponse); ok {
 		if strings.Contains(githubError.Message, "Visibility can't be private") {
 			err = errors.Wrap(ErrRepositoryLimitExceeded, "limit for private repos on this account is exceeded")
