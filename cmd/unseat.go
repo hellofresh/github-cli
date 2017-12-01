@@ -17,7 +17,18 @@ type (
 	}
 )
 
-var unseatFlags UnseatFlags
+var (
+	unseatFlags UnseatFlags
+
+	// Unseat commands
+	unseatCmd = &cobra.Command{
+		Use:     "unseat",
+		Aliases: []string{"un"},
+		Short:   "Removes external collaborators from repositories",
+		Long:    `Removes external (people not in the organization) collaborators from repositories`,
+		Run:     RunUnseat,
+	}
+)
 
 func init() {
 	unseatCmd.Flags().StringVarP(&unseatFlags.Org, "organization", "o", "", "Github's organization")

@@ -7,6 +7,7 @@ import (
 	"os/user"
 
 	"github.com/fatih/color"
+	"github.com/google/go-github/github"
 	"github.com/hellofresh/github-cli/pkg/config"
 	"github.com/hellofresh/github-cli/pkg/repo"
 	"github.com/pkg/errors"
@@ -56,7 +57,13 @@ func RunCreateTestRepo(cmd *cobra.Command, args []string) {
 	creator := repo.NewGithub(githubClient)
 
 	color.White("Creating repository...")
-	err = creator.CreateRepo(target, "", org, true)
+	_, err = creator.CreateRepo(org, &github.Repository{
+		Name:      github.String(target),
+		Private:   github.Bool(true),
+		HasIssues: github.Bool(false),
+		HasPages:  github.Bool(false),
+		HasWiki:   github.Bool(false),
+	})
 	checkEmpty(err, "Could not create github repo for candidate")
 
 	color.White("Adding collaborators to repository...")
