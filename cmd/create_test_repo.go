@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/user"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
@@ -42,7 +40,7 @@ func RunCreateTestRepo(cmd *cobra.Command, args []string) {
 
 	org := createTestRepoFlags.Org
 	if org == "" {
-		org = globalConfig.Github.Organization
+		org = globalConfig.GithubTestOrg.Organization
 	}
 	checkEmpty(org, "Please provide an organization")
 
@@ -81,17 +79,10 @@ func RunCreateTestRepo(cmd *cobra.Command, args []string) {
 		globalConfig.PublicKeyPath = fmt.Sprintf("%s/.ssh/id_rsa", user.HomeDir)
 	}
 
-	sshKey, err := ioutil.ReadFile(globalConfig.PublicKeyPath)
-	checkEmpty(err, "Error reading public key")
-
-	authMethod, err := ssh.NewPublicKeys("git", []byte(sshKey), "")
-	checkEmpty(err, "Error when creating public keys")
-
 	color.White("Cloning repository...")
 	r, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
-		Auth:     authMethod,
 		Progress: os.Stdout,
-		URL:      fmt.Sprintf("git@github.com:%s/%s", org, testRepo),
+		URL:      fmt.Sprintf("https://%s@github.com/%s/%s", globalConfig.GithubTestOrg.Token, org, testRepo),
 	})
 	checkEmpty(err, "Error cloning to repository")
 
