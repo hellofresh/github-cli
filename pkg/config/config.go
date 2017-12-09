@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"os/user"
 
 	"github.com/containous/traefik/log"
@@ -74,6 +75,9 @@ func Load(cfgFile string) (*Spec, error) {
 		viper.AddConfigPath(".")
 		viper.AddConfigPath(homeDir())
 	}
+
+	viper.SetDefault("github.token", os.Getenv("GITHUB_TOKEN"))
+	viper.SetDefault("githubtestorg.token", os.Getenv("GITHUB_TOKEN"))
 
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err

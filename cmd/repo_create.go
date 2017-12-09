@@ -12,7 +12,6 @@ import (
 
 // CreateRepoOptions are the flags for the create repository command
 type CreateRepoOptions struct {
-	Name                 string
 	Description          string
 	Org                  string
 	Private              bool
