@@ -6,9 +6,8 @@ import "github.com/spf13/cobra"
 func NewRepoCmd() *cobra.Command {
 	// Repo commands
 	cmd := &cobra.Command{
-		Use:     "repo",
-		Short:   "Github repository management",
-		Aliases: []string{"re"},
+		Use:   "repo",
+		Short: "Github repository management",
 	}
 
 	cmd.AddCommand(NewCreateRepoCmd())

@@ -23,10 +23,9 @@ func NewHiringUnseat() *cobra.Command {
 	opts := &UnseatOpts{}
 
 	cmd := &cobra.Command{
-		Use:     "unseat",
-		Aliases: []string{"un"},
-		Short:   "Removes external collaborators from repositories",
-		Long:    `Removes external (people not in the organization) collaborators from repositories`,
+		Use:   "unseat",
+		Short: "Removes external collaborators from repositories",
+		Long:  `Removes external (people not in the organization) collaborators from repositories`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return RunUnseat(opts)
 		},

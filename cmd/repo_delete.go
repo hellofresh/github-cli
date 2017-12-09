@@ -20,9 +20,8 @@ type (
 func NewDeleteRepoCmd() *cobra.Command {
 	opts := &DeleteRepoOpts{}
 	cmd := &cobra.Command{
-		Use:     "delete",
-		Aliases: []string{"del"},
-		Short:   "Deletes a github repository",
+		Use:   "delete",
+		Short: "Deletes a github repository",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return RunDeleteRepo(opts)
 		},

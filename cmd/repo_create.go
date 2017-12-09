@@ -33,7 +33,6 @@ func NewCreateRepoCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "create [name]",
-		Aliases: []string{"cr"},
 		Short:   "Creates a new github repository",
 		Long:    `Creates a new github repository based on the rules defined on your .github.toml`,
 		PreRunE: setupConnection,
