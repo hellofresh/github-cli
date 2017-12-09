@@ -1,6 +1,3 @@
-# Defines the application log level
-LogLevel="debug"
-
 # Where your public ssh key that is registered on Github is. By default it 
 # looks in your ssh folder for a file called `id_rsa`
 # PublicKeyPath = ~/.ssh/id_rsa
@@ -51,3 +48,10 @@ LogLevel="debug"
 
     # Defines branch protections
     Protections={master=["code-review/pullapprove"]}
+
+[githubtestorg]
+    # Defines the github test organization
+    Organization="yourOrg"
+
+    # Defines the github test token
+    Token=""
