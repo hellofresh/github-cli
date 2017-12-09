@@ -33,11 +33,11 @@ func NewHiringSendCmd() *cobra.Command {
 			return RunCreateTestRepo(args[0], args[1], opts)
 		},
 		Args: func(cmd *cobra.Command, args []string) error {
-			if args[0] == "" {
+			if len(args) < 1 || args[0] == "" {
 				return errors.New("Please provide a github username for the candidate")
 			}
 
-			if args[1] == "" {
+			if len(args) < 2 || args[1] == "" {
 				return errors.New("Please provide which repository test")
 			}
 
