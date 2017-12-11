@@ -4,7 +4,7 @@ import (
 	"os"
 	"os/user"
 
-	"github.com/containous/traefik/log"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
