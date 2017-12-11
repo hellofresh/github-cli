@@ -59,18 +59,21 @@ func RunUnseat(opts *UnseatOpts) error {
 		return errors.New("Please provide an organization")
 	}
 
+	log.Info("Fetching repositories...")
 	allRepos, err := fetchAllRepos(org, opts.ReposPerPage, opts.Page)
 	if err != nil {
 		return errors.Wrap(err, "Could not retrieve repositories")
 	}
+	log.Infof("%d repositories fetched!", len(allRepos))
 
+	log.Info("Removing outside colaborators...")
 	for _, repo := range allRepos {
 		if isRepoInactive(repo) {
 			continue
 		}
 
 		repoName := *repo.Name
-		log.WithField("repo", repoName).Info("Fetching outside collaborators")
+		log.WithField("repo", repoName).Debug("Fetching outside collaborators")
 		outsideCollaborators, _, err := githubClient.Repositories.ListCollaborators(ctx, org, repoName, &github.ListCollaboratorsOptions{
 			Affiliation: "outside",
 		})
@@ -104,7 +107,7 @@ func fetchAllRepos(owner string, reposPerPage int, page int) ([]*github.Reposito
 	}
 
 	for {
-		log.Infof("Fetching repositories page [%d]", opt.Page)
+		log.Debugf("Fetching repositories page [%d]", opt.Page)
 		repos, resp, err := githubClient.Repositories.ListByOrg(context.Background(), owner, opt)
 		if err != nil {
 			return allRepos, err
