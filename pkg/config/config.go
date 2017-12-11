@@ -1,17 +1,19 @@
 package config
 
 import (
+	"os"
+	"os/user"
+
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
 type (
 	// Spec represents the global app configuration
 	Spec struct {
-		PublicKeyPath string
 		Github        Github
 		GithubTestOrg Github
 		PullApprove   PullApprove
-		LogLevel      string
 	}
 
 	// PullApprove represents teh Pull Approve configurations
@@ -70,9 +72,12 @@ func Load(cfgFile string) (*Spec, error) {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		viper.SetConfigName(".github")
-		viper.AddConfigPath("/etc/github")
 		viper.AddConfigPath(".")
+		viper.AddConfigPath(homeDir())
 	}
+
+	viper.SetDefault("github.token", os.Getenv("GITHUB_TOKEN"))
+	viper.SetDefault("githubtestorg.token", os.Getenv("GITHUB_TOKEN"))
 
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err
@@ -84,4 +89,13 @@ func Load(cfgFile string) (*Spec, error) {
 	}
 
 	return config, nil
+}
+
+func homeDir() string {
+	usr, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return usr.HomeDir
 }

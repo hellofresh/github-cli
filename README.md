@@ -31,10 +31,11 @@ github-cli [command] [--flags]
 
 | Command                  | Description                          |
 |--------------------------|--------------------------------------|
-| `github-cli repo create [--flags]` | Creates a new github repository      |
-| `github-cli test create [--flags]` | Creates a new hellofresh hiring test |
-| `github-cli unseat [--flags]`      | Removes external collaborators from repositories |
-| `github-cli version`               | Prints the version information |
+| `github-cli repo create [--flags]`   | Creates a new github repository      |
+| `github-cli repo delete [--flags]`   | Deletes a github repository          |
+| `github-cli hiring send [--flags]`   | Creates a new hellofresh hiring test |
+| `github-cli hiring unseat [--flags]` | Removes external collaborators from repositories |
+| `github-cli version`                 | Prints the version information |
 
 ## Contributing
 
