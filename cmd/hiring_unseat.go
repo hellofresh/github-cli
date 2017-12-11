@@ -2,11 +2,18 @@ package cmd
 
 import (
 	"context"
+	"math"
+	"time"
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+)
+
+const (
+	weekInSeconds     float64 = 604800
+	weeksOfInactivity int     = 5
 )
 
 type (
@@ -23,9 +30,10 @@ func NewHiringUnseat() *cobra.Command {
 	opts := &UnseatOpts{}
 
 	cmd := &cobra.Command{
-		Use:   "unseat",
-		Short: "Removes external collaborators from repositories",
-		Long:  `Removes external (people not in the organization) collaborators from repositories`,
+		Use:     "unseat",
+		Short:   "Removes external collaborators from repositories",
+		Long:    `Removes external (people not in the organization) collaborators from repositories`,
+		PreRunE: setupConnection,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return RunUnseat(opts)
 		},
@@ -40,25 +48,66 @@ func NewHiringUnseat() *cobra.Command {
 
 // RunUnseat runs the command to create a new hiring test repository
 func RunUnseat(opts *UnseatOpts) error {
+	var unseatedCollaborators int
+	ctx := context.Background()
+
 	org := opts.Org
 	if org == "" {
-		org = globalConfig.Github.Organization
+		org = globalConfig.GithubTestOrg.Organization
 	}
 	if org == "" {
 		return errors.New("Please provide an organization")
 	}
 
-	opt := &github.RepositoryListByOrgOptions{
-		ListOptions: github.ListOptions{PerPage: opts.ReposPerPage, Page: opts.Page},
+	allRepos, err := fetchAllRepos(org, opts.ReposPerPage, opts.Page)
+	if err != nil {
+		return errors.Wrap(err, "Could not retrieve repositories")
 	}
-	ctx := context.Background()
-	// get all pages of results
+
+	for _, repo := range allRepos {
+		if isRepoInactive(repo) {
+			continue
+		}
+
+		repoName := *repo.Name
+		log.WithField("repo", repoName).Info("Fetching outside collaborators")
+		outsideCollaborators, _, err := githubClient.Repositories.ListCollaborators(ctx, org, repoName, &github.ListCollaboratorsOptions{
+			Affiliation: "outside",
+		})
+		if err != nil {
+			return errors.Wrap(err, "Could not retrieve outside collaborators")
+		}
+
+		for _, collaborator := range outsideCollaborators {
+			log.WithFields(log.Fields{
+				"repo":         repoName,
+				"collaborator": collaborator.GetLogin(),
+			}).Info("Deleting outside collaborators")
+			_, err := githubClient.Repositories.RemoveCollaborator(ctx, org, repoName, collaborator.GetLogin())
+			if err != nil {
+				return errors.Wrap(err, "Could not unseat outside collaborator")
+			}
+
+			unseatedCollaborators++
+		}
+	}
+
+	log.Infof("Done! %d outside collaborators unseated", unseatedCollaborators)
+	return nil
+}
+
+func fetchAllRepos(owner string, reposPerPage int, page int) ([]*github.Repository, error) {
 	var allRepos []*github.Repository
+
+	opt := &github.RepositoryListByOrgOptions{
+		ListOptions: github.ListOptions{PerPage: reposPerPage, Page: page},
+	}
+
 	for {
 		log.Infof("Fetching repositories page [%d]", opt.Page)
-		repos, resp, err := githubClient.Repositories.ListByOrg(ctx, org, opt)
+		repos, resp, err := githubClient.Repositories.ListByOrg(context.Background(), owner, opt)
 		if err != nil {
-			return errors.Wrap(err, "Could not retrieve repositories")
+			return allRepos, err
 		}
 
 		allRepos = append(allRepos, repos...)
@@ -68,26 +117,27 @@ func RunUnseat(opts *UnseatOpts) error {
 		opt.Page = resp.NextPage
 	}
 
-	for _, repo := range allRepos {
-		repoName := *repo.Name
+	return allRepos, nil
+}
 
-		log.Infof("Fetching collaborators for %s", repoName)
-		collaborators, _, err := githubClient.Repositories.ListCollaborators(ctx, org, repoName, &github.ListCollaboratorsOptions{
-			Affiliation: "outside",
-		})
-		if err != nil {
-			return errors.Wrap(err, "Could not retrieve collaborators")
-		}
+func isRepoInactive(repo *github.Repository) bool {
+	diff := time.Since(repo.PushedAt.Time)
+	weeksAgo := roundTime(diff.Seconds() / weekInSeconds)
 
-		log.Infof("Deleting collaborators on %s", repoName)
-		for _, collaborator := range collaborators {
-			_, err := githubClient.Repositories.RemoveCollaborator(ctx, org, repoName, *collaborator.Name)
-			if err != nil {
-				return errors.Wrap(err, "Could not unseat collaborator")
-			}
-		}
+	return weeksAgo < weeksOfInactivity
+}
+
+func roundTime(input float64) int {
+	var result float64
+
+	if input < 0 {
+		result = math.Ceil(input - 0.5)
+	} else {
+		result = math.Floor(input + 0.5)
 	}
 
-	log.Info("Done!")
-	return nil
+	// only interested in integer, ignore fractional
+	i, _ := math.Modf(result)
+
+	return int(i)
 }
