@@ -1,19 +1,23 @@
 package cmd
 
 import (
-	"github.com/fatih/color"
+	"context"
+	"errors"
+
 	"github.com/google/go-github/github"
+	"github.com/hashicorp/errwrap"
+	"github.com/hellofresh/github-cli/pkg/config"
+	gh "github.com/hellofresh/github-cli/pkg/github"
+	"github.com/hellofresh/github-cli/pkg/log"
 	"github.com/hellofresh/github-cli/pkg/pullapprove"
 	"github.com/hellofresh/github-cli/pkg/repo"
-	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 // CreateRepoOptions are the flags for the create repository command
 type CreateRepoOptions struct {
 	Description          string
-	Org                  string
 	Private              bool
 	HasPullApprove       bool
 	HasTeams             bool
@@ -28,20 +32,19 @@ type CreateRepoOptions struct {
 }
 
 // NewCreateRepoCmd creates a new create repo command
-func NewCreateRepoCmd() *cobra.Command {
+func NewCreateRepoCmd(ctx context.Context) *cobra.Command {
 	opts := &CreateRepoOptions{}
 
 	cmd := &cobra.Command{
-		Use:     "create [name]",
-		Short:   "Creates a new github repository",
-		Long:    `Creates a new github repository based on the rules defined on your .github.toml`,
-		PreRunE: setupConnection,
+		Use:   "create [name]",
+		Short: "Creates a new github repository",
+		Long:  `Creates a new github repository based on the rules defined on your .github.toml`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunCreateRepo(args[0], opts)
+			return RunCreateRepo(ctx, args[0], opts)
 		},
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 || args[0] == "" {
-				return errors.New("Please provide a repository name")
+				return errors.New("please provide a repository name")
 			}
 
 			return nil
@@ -49,7 +52,6 @@ func NewCreateRepoCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&opts.Description, "description", "d", "", "The repository's description")
-	cmd.Flags().StringVarP(&opts.Org, "organization", "o", "", "Github's organization")
 	cmd.Flags().BoolVar(&opts.Private, "private", true, "Is the repository private?")
 
 	cmd.Flags().BoolVar(&opts.HasIssues, "has-issues", true, "Enables issue pages")
@@ -66,36 +68,40 @@ func NewCreateRepoCmd() *cobra.Command {
 }
 
 // RunCreateRepo runs the command to create a new repository
-func RunCreateRepo(repoName string, opts *CreateRepoOptions) error {
-	var err error
-	var org string
-
-	description := opts.Description
-
-	org = opts.Org
-	if org == "" {
-		org = globalConfig.Github.Organization
+func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions) error {
+	wg, ctx := errgroup.WithContext(ctx)
+	logger := log.WithContext(ctx)
+	cfg := config.WithContext(ctx)
+	githubClient := gh.WithContext(ctx)
+	if githubClient == nil {
+		return errors.New("failed to get github client")
 	}
 
+	org := cfg.Github.Organization
+	if org == "" {
+		return errors.New("please provide an organization")
+	}
+
+	description := opts.Description
 	githubOpts := &repo.GithubRepoOpts{
 		PullApprove: &repo.PullApproveOpts{
-			Filename:            globalConfig.PullApprove.Filename,
-			ProtectedBranchName: globalConfig.PullApprove.ProtectedBranchName,
-			Client:              pullapprove.New(globalConfig.PullApprove.Token),
+			Filename:            cfg.PullApprove.Filename,
+			ProtectedBranchName: cfg.PullApprove.ProtectedBranchName,
+			Client:              pullapprove.New(cfg.PullApprove.Token),
 		},
 		Labels: &repo.LabelsOpts{
-			RemoveDefaultLabels: globalConfig.Github.RemoveDefaultLabels,
-			Labels:              globalConfig.Github.Labels,
+			RemoveDefaultLabels: cfg.Github.RemoveDefaultLabels,
+			Labels:              cfg.Github.Labels,
 		},
-		Teams:             globalConfig.Github.Teams,
-		Webhooks:          globalConfig.Github.Webhooks,
-		BranchProtections: globalConfig.Github.Protections,
+		Teams:             cfg.Github.Teams,
+		Webhooks:          cfg.Github.Webhooks,
+		BranchProtections: cfg.Github.Protections,
 	}
 
 	creator := repo.NewGithub(githubClient)
 
-	log.Info("Creating repository...")
-	ghRepo, err := creator.CreateRepo(org, &github.Repository{
+	logger.Info("Creating repository...")
+	ghRepo, err := creator.CreateRepo(ctx, org, &github.Repository{
 		Name:        github.String(repoName),
 		Description: github.String(description),
 		Private:     github.Bool(opts.Private),
@@ -104,70 +110,96 @@ func RunCreateRepo(repoName string, opts *CreateRepoOptions) error {
 		HasPages:    github.Bool(opts.HasPages),
 		AutoInit:    github.Bool(true),
 	})
-	if errors.Cause(err) == repo.ErrRepositoryAlreadyExists {
-		log.Info("Repository already exists. Trying to normalize it...")
+	if errwrap.ContainsType(err, repo.ErrRepositoryAlreadyExists) {
+		logger.Info("Repository already exists. Trying to normalize it...")
 	} else if err != nil {
-		return errors.Wrap(err, "Could not create repository")
+		return errwrap.Wrapf("could not create repository: {{err}}", err)
 	}
 
 	if opts.HasPullApprove {
-		log.Info("Adding pull approve...")
-		err = creator.AddPullApprove(repoName, org, githubOpts.PullApprove)
-		if errors.Cause(err) == repo.ErrPullApproveFileAlreadyExists {
-			color.Cyan("Pull approve already exists, moving on...")
-		} else if err != nil {
-			return errors.Wrap(err, "Could not add pull approve")
-		}
+		wg.Go(func() error {
+			logger.Info("Adding pull approve...")
+			err = creator.AddPullApprove(ctx, repoName, org, githubOpts.PullApprove)
+			if errwrap.ContainsType(err, repo.ErrPullApproveFileAlreadyExists) {
+				logger.Debug("Pull approve already exists, moving on...")
+			} else if err != nil {
+				return errwrap.Wrapf("could not add pull approve: {{err}}", err)
+			}
+
+			return nil
+		})
 	}
 
 	if opts.HasTeams {
-		log.Info("Adding teams to repository...")
-		err = creator.AddTeamsToRepo(repoName, org, githubOpts.Teams)
-		if err != nil {
-			return errors.Wrap(err, "Could not add teams to repository")
-		}
+		wg.Go(func() error {
+			logger.Info("Adding teams to repository...")
+			err = creator.AddTeamsToRepo(ctx, repoName, org, githubOpts.Teams)
+			if err != nil {
+				return errwrap.Wrapf("could not add teams to repository: {{err}}", err)
+			}
+
+			return nil
+		})
 	}
 
 	if opts.HasCollaborators {
-		log.Info("Adding collaborators to repository...")
-		err = creator.AddCollaborators(repoName, org, githubOpts.Collaborators)
-		if err != nil {
-			return errors.Wrap(err, "Could not add collaborators to repository")
-		}
+		wg.Go(func() error {
+			logger.Info("Adding collaborators to repository...")
+			if err = creator.AddCollaborators(ctx, repoName, org, githubOpts.Collaborators); err != nil {
+				return errwrap.Wrapf("could not add collaborators to repository: {{err}}", err)
+			}
+
+			return nil
+		})
 	}
 
 	if opts.HasLabels {
-		log.Info("Adding labels to repository...")
-		err = creator.AddLabelsToRepo(repoName, org, githubOpts.Labels)
-		if errors.Cause(err) == repo.ErrLabelNotFound {
-			color.Cyan("Default labels does not exists, moving on...")
-		} else if err != nil {
-			return errors.Wrap(err, "Could not add labels to repository")
-		}
+		wg.Go(func() error {
+			logger.Info("Adding labels to repository...")
+			err = creator.AddLabelsToRepo(ctx, repoName, org, githubOpts.Labels)
+			if errwrap.ContainsType(err, repo.ErrLabeAlreadyExists) {
+				logger.Debug("Default labels already exists, moving on...")
+			} else {
+				return errwrap.Wrapf("could not add labels to repository: {{err}}", err)
+			}
+
+			return nil
+		})
 	}
 
 	if opts.HasWebhooks {
-		log.Info("Adding webhooks to repository...")
-		err = creator.AddWebhooksToRepo(repoName, org, githubOpts.Webhooks)
-		if errors.Cause(err) == repo.ErrWebhookAlreadyExist {
-			color.Cyan("Webhook already exists, moving on...")
-		} else if err != nil {
-			return errors.Wrap(err, "Could not add webhooks to repository")
-		}
+		wg.Go(func() error {
+			logger.Info("Adding webhooks to repository...")
+			err = creator.AddWebhooksToRepo(ctx, repoName, org, githubOpts.Webhooks)
+			if errwrap.ContainsType(err, repo.ErrWebhookAlreadyExist) {
+				logger.Debug("Webhook already exists, moving on...")
+			} else if err != nil {
+				return errwrap.Wrapf("could not add webhooks to repository: {{err}}", err)
+			}
+
+			return nil
+		})
 	}
 
 	if opts.HasBranchProtections {
-		log.Info("Adding branch protections to repository...")
-		err = creator.AddBranchProtections(repoName, org, githubOpts.BranchProtections)
-		if err != nil {
-			return errors.Wrap(err, "Could not add branch protections to repository")
-		}
+		wg.Go(func() error {
+			logger.Info("Adding branch protections to repository...")
+			if err = creator.AddBranchProtections(ctx, repoName, org, githubOpts.BranchProtections); err != nil {
+				return errwrap.Wrapf("could not add branch protections to repository: {{err}}", err)
+			}
+
+			return nil
+		})
+	}
+
+	if err := wg.Wait(); err != nil {
+		return err
 	}
 
 	if ghRepo != nil {
-		log.Infof("Repository created! \n Here is how to access it %s", ghRepo.GetGitURL())
+		logger.Infof("Repository created! \n Here is how to access it %s", ghRepo.GetGitURL())
 	} else {
-		log.Info("Repository normalized!")
+		logger.Info("Repository normalized!")
 	}
 
 	return nil

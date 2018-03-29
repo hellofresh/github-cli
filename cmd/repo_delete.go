@@ -2,53 +2,58 @@ package cmd
 
 import (
 	"context"
+	"errors"
 
-	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	"github.com/hashicorp/errwrap"
+	"github.com/hellofresh/github-cli/pkg/config"
+	gh "github.com/hellofresh/github-cli/pkg/github"
+	"github.com/hellofresh/github-cli/pkg/log"
 	"github.com/spf13/cobra"
 )
 
 type (
 	// DeleteRepoOpts are the flags for the delete repo command
 	DeleteRepoOpts struct {
-		Org  string
 		Name string
 	}
 )
 
 // NewDeleteRepoCmd creates a new delete repo command
-func NewDeleteRepoCmd() *cobra.Command {
+func NewDeleteRepoCmd(ctx context.Context) *cobra.Command {
 	opts := &DeleteRepoOpts{}
 	cmd := &cobra.Command{
 		Use:   "delete",
 		Short: "Deletes a github repository",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunDeleteRepo(opts)
+			return RunDeleteRepo(ctx, opts)
 		},
 	}
 
 	cmd.Flags().StringVarP(&opts.Name, "name", "n", "", "The name of the repository")
-	cmd.Flags().StringVarP(&opts.Org, "organization", "o", "", "Github's organization")
 
 	return cmd
 }
 
 // RunDeleteRepo runs the command to delete a repository
-func RunDeleteRepo(opts *DeleteRepoOpts) error {
-	org := opts.Org
-	if org == "" {
-		org = globalConfig.Github.Organization
-	}
-	if org == "" {
-		return errors.New("Please provide an organization")
+func RunDeleteRepo(ctx context.Context, opts *DeleteRepoOpts) error {
+	logger := log.WithContext(ctx)
+	cfg := config.WithContext(ctx)
+	githubClient := gh.WithContext(ctx)
+	if githubClient == nil {
+		return errors.New("failed to get github client")
 	}
 
-	_, err := githubClient.Repositories.Delete(context.Background(), org, opts.Name)
+	org := cfg.Github.Organization
+	if org == "" {
+		return errors.New("please provide an organization")
+	}
+
+	_, err := githubClient.Repositories.Delete(ctx, org, opts.Name)
 	if err != nil {
-		return errors.Wrap(err, "Could not delete repository")
+		return errwrap.Wrapf("Could not delete repository: {{err}}", err)
 	}
 
-	log.Info("Repository %s deleted!", opts.Name)
+	logger.Info("Repository %s deleted!", opts.Name)
 
 	return nil
 }

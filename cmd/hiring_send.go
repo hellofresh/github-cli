@@ -1,14 +1,17 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/google/go-github/github"
+	"github.com/hashicorp/errwrap"
 	"github.com/hellofresh/github-cli/pkg/config"
+	gh "github.com/hellofresh/github-cli/pkg/github"
+	"github.com/hellofresh/github-cli/pkg/log"
 	"github.com/hellofresh/github-cli/pkg/repo"
-	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
@@ -16,21 +19,17 @@ import (
 
 type (
 	// HiringSendOpts are the flags for the send a hiring test command
-	HiringSendOpts struct {
-		Org string
-	}
+	HiringSendOpts struct{}
 )
 
 // NewHiringSendCmd creates a new send hiring test command
-func NewHiringSendCmd() *cobra.Command {
-	opts := &HiringSendOpts{}
+func NewHiringSendCmd(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "send [username] [repo]",
-		Short:   "Creates a new hellofresh hiring test",
-		Long:    `Creates a new hellofresh hiring test based on the rules defined on your .github.toml`,
-		PreRunE: setupConnection,
+		Use:   "send [username] [repo]",
+		Short: "Creates a new hellofresh hiring test",
+		Long:  `Creates a new hellofresh hiring test based on the rules defined on your .github.toml`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunCreateTestRepo(args[0], args[1], opts)
+			return RunCreateTestRepo(ctx, args[0], args[1])
 		},
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 || args[0] == "" {
@@ -45,29 +44,31 @@ func NewHiringSendCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.Org, "organization", "o", "", "Github's organization")
-
 	return cmd
 }
 
 // RunCreateTestRepo runs the command to create a new hiring test repository
-func RunCreateTestRepo(candidate string, testRepo string, opts *HiringSendOpts) error {
+func RunCreateTestRepo(ctx context.Context, candidate string, testRepo string) error {
 	var err error
 
-	org := opts.Org
-	if org == "" {
-		org = globalConfig.GithubTestOrg.Organization
+	logger := log.WithContext(ctx)
+	cfg := config.WithContext(ctx)
+	githubClient := gh.WithContext(ctx)
+	if githubClient == nil {
+		return errors.New("failed to get github client")
 	}
+
+	org := cfg.Github.Organization
 	if org == "" {
-		return errors.New("Please provide an organization")
+		return errors.New("please provide an organization")
 	}
 
 	target := fmt.Sprintf("%s-%s", candidate, testRepo)
 
 	creator := repo.NewGithub(githubClient)
 
-	log.Info("Creating repository...")
-	_, err = creator.CreateRepo(org, &github.Repository{
+	logger.Info("Creating repository...")
+	_, err = creator.CreateRepo(ctx, org, &github.Repository{
 		Name:      github.String(target),
 		Private:   github.Bool(true),
 		HasIssues: github.Bool(false),
@@ -75,47 +76,47 @@ func RunCreateTestRepo(candidate string, testRepo string, opts *HiringSendOpts) 
 		HasWiki:   github.Bool(false),
 	})
 	if err != nil {
-		return errors.Wrap(err, "Could not create github repo for candidate")
+		return errwrap.Wrapf("could not create github repo for candidate: {{err}}", err)
 	}
 
-	log.Info("Adding collaborators to repository...")
+	logger.Info("Adding collaborators to repository...")
 	collaboratorsOpts := []*config.Collaborator{
 		&config.Collaborator{
 			Username:   candidate,
 			Permission: "push",
 		},
 	}
-	err = creator.AddCollaborators(target, org, collaboratorsOpts)
+	err = creator.AddCollaborators(ctx, target, org, collaboratorsOpts)
 	if err != nil {
-		return errors.Wrap(err, "Could not add collaborators to repository")
+		return errwrap.Wrapf("could not add collaborators to repository: {{err}}", err)
 	}
 
-	log.Info("Cloning repository...")
+	logger.Info("Cloning repository...")
 	r, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
 		Progress: os.Stdout,
-		URL:      fmt.Sprintf("https://%s@github.com/%s/%s", globalConfig.GithubTestOrg.Token, org, testRepo),
+		URL:      fmt.Sprintf("https://%s@github.com/%s/%s", cfg.GithubTestOrg.Token, org, testRepo),
 	})
 	if err != nil {
-		return errors.Wrap(err, "Error cloning to repository")
+		return errwrap.Wrapf("error cloning to repository: {{err}}", err)
 	}
 
-	log.Info("Changing remote...")
+	logger.Info("Changing remote...")
 	remote, err := r.Remote(git.DefaultRemoteName)
 	if err != nil {
-		return errors.Wrap(err, "Error changing remote for repository")
+		return errwrap.Wrapf("error changing remote for repository: {{err}}", err)
 	}
 
-	log.Info("Pushing changes...")
-	remote.Config().URLs = []string{fmt.Sprintf("https://%s@github.com/%s/%s", globalConfig.GithubTestOrg.Token, org, target)}
+	logger.Info("Pushing changes...")
+	remote.Config().URLs = []string{fmt.Sprintf("https://%s@github.com/%s/%s", cfg.GithubTestOrg.Token, org, target)}
 	err = remote.Push(&git.PushOptions{
 		RemoteName: git.DefaultRemoteName,
 		Progress:   os.Stdout,
 	})
 	if err != nil {
-		return errors.Wrap(err, "Error pushing to repository")
+		return errwrap.Wrapf("error pushing to repository: {{err}}", err)
 	}
 
-	log.Infof("Done! Hiring test for %s is created", candidate)
+	logger.Infof("Done! Hiring test for %s is created", candidate)
 
 	return nil
 }

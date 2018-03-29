@@ -2,12 +2,16 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"math"
 	"time"
 
 	"github.com/google/go-github/github"
-	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	"github.com/hashicorp/errwrap"
+	"github.com/hellofresh/github-cli/pkg/config"
+	gh "github.com/hellofresh/github-cli/pkg/github"
+	"github.com/hellofresh/github-cli/pkg/log"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -19,27 +23,24 @@ const (
 type (
 	// UnseatOpts are the flags for the unseat command
 	UnseatOpts struct {
-		Org          string
 		Page         int
 		ReposPerPage int
 	}
 )
 
 // NewHiringUnseat creates a new hiring unseat command
-func NewHiringUnseat() *cobra.Command {
+func NewHiringUnseat(ctx context.Context) *cobra.Command {
 	opts := &UnseatOpts{}
 
 	cmd := &cobra.Command{
-		Use:     "unseat",
-		Short:   "Removes external collaborators from repositories",
-		Long:    `Removes external (people not in the organization) collaborators from repositories`,
-		PreRunE: setupConnection,
+		Use:   "unseat",
+		Short: "Removes external collaborators from repositories",
+		Long:  `Removes external (people not in the organization) collaborators from repositories`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunUnseat(opts)
+			return RunUnseat(ctx, opts)
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.Org, "organization", "o", "", "Github's organization")
 	cmd.Flags().IntVar(&opts.ReposPerPage, "page-size", 50, "How many repositories should we get per page? (max 100)")
 	cmd.Flags().IntVar(&opts.Page, "page", 1, "Starting page for repositories")
 
@@ -47,68 +48,77 @@ func NewHiringUnseat() *cobra.Command {
 }
 
 // RunUnseat runs the command to create a new hiring test repository
-func RunUnseat(opts *UnseatOpts) error {
+func RunUnseat(ctx context.Context, opts *UnseatOpts) error {
 	var unseatedCollaborators int
-	ctx := context.Background()
 
-	org := opts.Org
-	if org == "" {
-		org = globalConfig.GithubTestOrg.Organization
-	}
-	if org == "" {
-		return errors.New("Please provide an organization")
+	logger := log.WithContext(ctx)
+	cfg := config.WithContext(ctx)
+	githubClient := gh.WithContext(ctx)
+	if githubClient == nil {
+		return errors.New("failed to get github client")
 	}
 
-	log.Info("Fetching repositories...")
-	allRepos, err := fetchAllRepos(org, opts.ReposPerPage, opts.Page)
+	org := cfg.Github.Organization
+	if org == "" {
+		return errors.New("please provide an organization")
+	}
+
+	logger.Info("Fetching repositories...")
+	allRepos, err := fetchAllRepos(ctx, org, opts.ReposPerPage, opts.Page)
 	if err != nil {
-		return errors.Wrap(err, "Could not retrieve repositories")
+		return errwrap.Wrapf("could not retrieve repositories: {{err}}", err)
 	}
-	log.Infof("%d repositories fetched!", len(allRepos))
+	logger.Infof("%d repositories fetched!", len(allRepos))
 
-	log.Info("Removing outside colaborators...")
+	logger.Info("Removing outside colaborators...")
 	for _, repo := range allRepos {
 		if isRepoInactive(repo) {
 			continue
 		}
 
 		repoName := *repo.Name
-		log.WithField("repo", repoName).Debug("Fetching outside collaborators")
+		logger.WithField("repo", repoName).Debug("Fetching outside collaborators")
 		outsideCollaborators, _, err := githubClient.Repositories.ListCollaborators(ctx, org, repoName, &github.ListCollaboratorsOptions{
 			Affiliation: "outside",
 		})
 		if err != nil {
-			return errors.Wrap(err, "Could not retrieve outside collaborators")
+			return errwrap.Wrapf("could not retrieve outside collaborators: {{err}}", err)
 		}
 
 		for _, collaborator := range outsideCollaborators {
-			log.WithFields(log.Fields{
+			logger.WithFields(logrus.Fields{
 				"repo":         repoName,
 				"collaborator": collaborator.GetLogin(),
 			}).Info("Deleting outside collaborators")
 			_, err := githubClient.Repositories.RemoveCollaborator(ctx, org, repoName, collaborator.GetLogin())
 			if err != nil {
-				return errors.Wrap(err, "Could not unseat outside collaborator")
+				return errwrap.Wrapf("could not unseat outside collaborator: {{err}}", err)
 			}
 
 			unseatedCollaborators++
 		}
 	}
 
-	log.Infof("Done! %d outside collaborators unseated", unseatedCollaborators)
+	logger.Infof("Done! %d outside collaborators unseated", unseatedCollaborators)
 	return nil
 }
 
-func fetchAllRepos(owner string, reposPerPage int, page int) ([]*github.Repository, error) {
+func fetchAllRepos(ctx context.Context, owner string, reposPerPage int, page int) ([]*github.Repository, error) {
 	var allRepos []*github.Repository
+
+	logger := log.WithContext(ctx)
+	githubClient := gh.WithContext(ctx)
+	if githubClient == nil {
+		return nil, errors.New("failed to get github client")
+	}
 
 	opt := &github.RepositoryListByOrgOptions{
 		ListOptions: github.ListOptions{PerPage: reposPerPage, Page: page},
 	}
 
 	for {
-		log.Debugf("Fetching repositories page [%d]", opt.Page)
-		repos, resp, err := githubClient.Repositories.ListByOrg(context.Background(), owner, opt)
+		logger.Debugf("Fetching repositories page [%d]", opt.Page)
+		repos, resp, err := githubClient.Repositories.ListByOrg(ctx, owner, opt)
 		if err != nil {
 			return allRepos, err
 		}
