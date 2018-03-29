@@ -42,7 +42,7 @@ func NewRootCmd() *cobra.Command {
 	ctx := log.NewContext(context.Background())
 	ctx, err := config.NewContext(ctx, opts.configFile)
 	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Could not load configuration file")
+		log.WithContext(ctx).WithError(err).Fatal("Could not load configuration file")
 	}
 
 	cfg := config.WithContext(ctx)
@@ -66,6 +66,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(NewRepoCmd(ctx))
 	cmd.AddCommand(NewHiringCmd(ctx))
 	cmd.AddCommand(NewVersionCmd(ctx))
+	cmd.AddCommand(NewUpdateCmd(ctx))
 
 	return &cmd
 }
