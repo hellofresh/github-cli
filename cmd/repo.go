@@ -1,17 +1,21 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"context"
+
+	"github.com/spf13/cobra"
+)
 
 // NewRepoCmd aggregates the repo comamnds
-func NewRepoCmd() *cobra.Command {
+func NewRepoCmd(ctx context.Context) *cobra.Command {
 	// Repo commands
 	cmd := &cobra.Command{
 		Use:   "repo",
 		Short: "Github repository management",
 	}
 
-	cmd.AddCommand(NewCreateRepoCmd())
-	cmd.AddCommand(NewDeleteRepoCmd())
+	cmd.AddCommand(NewCreateRepoCmd(ctx))
+	cmd.AddCommand(NewDeleteRepoCmd(ctx))
 
 	return cmd
 }
