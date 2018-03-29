@@ -158,8 +158,8 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 			logger.Info("Adding labels to repository...")
 			err = creator.AddLabelsToRepo(ctx, repoName, org, githubOpts.Labels)
 			if errwrap.ContainsType(err, repo.ErrLabeAlreadyExists) {
-				logger.Debug("Default labels already exists, moving on...")
-			} else {
+				logger.Debug("Labels already exists, moving on...")
+			} else if err != nil {
 				return errwrap.Wrapf("could not add labels to repository: {{err}}", err)
 			}
 
