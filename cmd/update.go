@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/errwrap"
-
 	"github.com/hellofresh/github-cli/pkg/log"
 	"github.com/italolelis/goupdater"
 	"github.com/spf13/cobra"
