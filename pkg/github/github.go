@@ -16,7 +16,7 @@ func NewContext(ctx context.Context, token string) (context.Context, error) {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
-	tc := oauth2.NewClient(context.Background(), ts)
+	tc := oauth2.NewClient(ctx, ts)
 
 	return context.WithValue(ctx, githubKey, github.NewClient(tc)), nil
 }
