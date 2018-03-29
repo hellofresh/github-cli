@@ -35,6 +35,7 @@ github-cli [command] [--flags]
 | `github-cli repo delete [--flags]`   | Deletes a github repository          |
 | `github-cli hiring send [--flags]`   | Creates a new hellofresh hiring test |
 | `github-cli hiring unseat [--flags]` | Removes external collaborators from repositories |
+| `github-cli update `                 | Check for new versions of github-cli |
 | `github-cli version`                 | Prints the version information |
 
 ## Contributing
