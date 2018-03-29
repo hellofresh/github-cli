@@ -37,5 +37,9 @@
   revision = "f9879dd043f84936a1f8acb8a53b74332a7ae135"
 
 [[constraint]]
-  name = "github.com/fatih/color"
-  version = "1.5.0"
+  branch = "master"
+  name = "github.com/hashicorp/go-multierror"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/hashicorp/errwrap"
