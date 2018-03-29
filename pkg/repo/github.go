@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -90,7 +91,7 @@ func (c *GithubRepo) AddPullApprove(ctx context.Context, repo string, org string
 
 	fileOpt := &github.RepositoryContentFileOptions{
 		Message: github.String("Initialize repository :tada:"),
-		Content: []byte("extends: hellofresh"),
+		Content: []byte(fmt.Sprintf("extends: %s", org)),
 		Branch:  github.String(opts.ProtectedBranchName),
 	}
 	_, _, err := c.GithubClient.Repositories.CreateFile(ctx, org, repo, opts.Filename, fileOpt)
