@@ -1,14 +1,19 @@
 package config
 
 import (
+	"context"
+	"fmt"
 	"os"
-	"os/user"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/hashicorp/errwrap"
+	"github.com/hellofresh/github-cli/pkg/log"
+	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
 
 type (
+	configKeyType int
+
 	// Spec represents the global app configuration
 	Spec struct {
 		Github        Github
@@ -64,38 +69,62 @@ type (
 	}
 )
 
-// Load loads all the configurations
-func Load(cfgFile string) (*Spec, error) {
-	// Don't forget to read config either from cfgFile or from home directory!
-	if cfgFile != "" {
+const configKey configKeyType = iota
+
+// NewContext loads a configuration file into the Spec struct
+func NewContext(ctx context.Context, configFile string) (context.Context, error) {
+	logger := log.WithContext(ctx)
+
+	if configFile != "" {
+		if _, err := os.Stat(configFile); os.IsNotExist(err) {
+			return ctx, fmt.Errorf("invalid configuration file provided %s", configFile)
+		}
 		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
+		viper.SetConfigFile(configFile)
 	} else {
+		homeDir, err := homedir.Dir()
+		if err != nil {
+			return ctx, err
+		}
+
 		viper.SetConfigName(".github")
 		viper.AddConfigPath(".")
-		viper.AddConfigPath(homeDir())
+		viper.AddConfigPath(homeDir)
 	}
+
+	logger.Debugf("Reading config from %s...", viper.ConfigFileUsed())
 
 	viper.SetDefault("github.token", os.Getenv("GITHUB_TOKEN"))
 	viper.SetDefault("githubtestorg.token", os.Getenv("GITHUB_TOKEN"))
 
-	if err := viper.ReadInConfig(); err != nil {
-		return nil, err
+	err := viper.ReadInConfig()
+	if err != nil {
+		return ctx, errwrap.Wrapf("could not read configurations: {{err}}", err)
 	}
 
-	var config *Spec
-	if err := viper.Unmarshal(&config); err != nil {
-		return nil, err
+	config := Spec{}
+	err = viper.Unmarshal(&config)
+	if err != nil {
+		return ctx, errwrap.Wrapf("could not unmarshal config file: {{err}}", err)
 	}
 
-	return config, nil
+	return context.WithValue(ctx, configKey, &config), nil
 }
 
-func homeDir() string {
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatal(err)
+// WithContext returns a logrus logger from the context
+func WithContext(ctx context.Context) *Spec {
+	if ctx == nil {
+		return nil
 	}
 
-	return usr.HomeDir
+	if ctxConfig, ok := ctx.Value(configKey).(*Spec); ok {
+		return ctxConfig
+	}
+
+	return nil
+}
+
+// OverrideConfig writes a new context with the the new configuration
+func OverrideConfig(ctx context.Context, config *Spec) context.Context {
+	return context.WithValue(ctx, configKey, config)
 }
