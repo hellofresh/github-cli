@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/dghubble/sling"
+  packages = ["."]
+  revision = "eb56e89ac5088bebb12eef3cb4b293300f43608b"
+  version = "v1.1.0"
+
+[[projects]]
   name = "github.com/fsnotify/fsnotify"
   packages = ["."]
   revision = "629574ca2a5df945712d3079857300b5e4da0236"
@@ -304,6 +310,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "44ebccbec57c16ded7dd91a6f67ddae40034757ea0f17ec15e6ee1b1632ccce5"
+  inputs-digest = "c9c94ffb5300f9337d72ee59d3bcf8aae0c65542cf2f77bf82c5b7edf7f27d5a"
   solver-name = "gps-cdcl"
   solver-version = 1
