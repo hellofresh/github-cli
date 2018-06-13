@@ -11,3 +11,6 @@ builds:
       - CGO_ENABLED=0
 
     ldflags: -s -w -X github.com/hellofresh/github-cli/cmd.version={{.Version}}
+
+archive:
+  format: binary
