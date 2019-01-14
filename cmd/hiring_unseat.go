@@ -58,7 +58,7 @@ func RunUnseat(ctx context.Context, opts *UnseatOpts) error {
 		return errors.New("failed to get github client")
 	}
 
-	org := cfg.Github.Organization
+	org := cfg.GithubTestOrg.Organization
 	if org == "" {
 		return errors.New("please provide an organization")
 	}
