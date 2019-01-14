@@ -58,7 +58,7 @@ func RunCreateTestRepo(ctx context.Context, candidate string, testRepo string) e
 		return errors.New("failed to get github client")
 	}
 
-	org := cfg.Github.Organization
+	org := cfg.GithubTestOrg.Organization
 	if org == "" {
 		return errors.New("please provide an organization")
 	}
