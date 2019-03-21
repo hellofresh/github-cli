@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/hellofresh/github-cli/pkg/zappr"
+
 	"github.com/google/go-github/github"
 	"github.com/hashicorp/errwrap"
 	"github.com/hellofresh/github-cli/pkg/config"
@@ -20,6 +22,7 @@ type CreateRepoOptions struct {
 	Description          string
 	Private              bool
 	HasPullApprove       bool
+	HasZappr             bool
 	HasTeams             bool
 	HasCollaborators     bool
 	HasLabels            bool
@@ -57,7 +60,8 @@ func NewCreateRepoCmd(ctx context.Context) *cobra.Command {
 	cmd.Flags().BoolVar(&opts.HasIssues, "has-issues", true, "Enables issue pages")
 	cmd.Flags().BoolVar(&opts.HasWiki, "has-wiki", false, "Enables wiki pages?")
 	cmd.Flags().BoolVar(&opts.HasPages, "has-pages", false, "Enables github pages?")
-	cmd.Flags().BoolVar(&opts.HasPullApprove, "has-pullapprove", true, "Enables pull approve")
+	cmd.Flags().BoolVar(&opts.HasPullApprove, "has-pullapprove", false, "Enables pull approve")
+	cmd.Flags().BoolVar(&opts.HasZappr, "has-zappr", true, "Enables Zappr")
 	cmd.Flags().BoolVar(&opts.HasTeams, "has-teams", true, "Enable teams")
 	cmd.Flags().BoolVar(&opts.HasLabels, "has-labels", true, "Enable labels")
 	cmd.Flags().BoolVar(&opts.HasDefaultLabels, "rm-default-labels", true, "Removes the default github labels")
@@ -124,6 +128,39 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 				logger.Debug("Pull approve already exists, moving on...")
 			} else if err != nil {
 				return errwrap.Wrapf("could not add pull approve: {{err}}", err)
+			}
+
+			return nil
+		})
+	}
+
+	if opts.HasZappr {
+		wg.Go(func() error {
+			logger.Info("Adding Zappr...")
+
+			if ghRepo == nil {
+				logger.Debug("Fetching repo details from Github")
+				ghRepo, _, err = githubClient.Repositories.Get(ctx, org, repoName)
+
+				if err != nil {
+					return errwrap.Wrapf("information required to enable zappr on github repo was not found: {{err}}", err)
+				}
+			}
+
+			var zapprClient zappr.Client
+			if cfg.Zappr.Token == "" {
+				logger.Debug("Authenticating to Zappr using Github token")
+				zapprClient = zappr.NewWithGithubToken(cfg.Zappr.URL, cfg.Github.Token, nil)
+			} else {
+				logger.Debug("Authenticating to Zappr using Zappr token")
+				zapprClient = zappr.NewWithZapprToken(cfg.Zappr.URL, cfg.Zappr.Token, nil)
+			}
+
+			err = zapprClient.Enable(*ghRepo.ID)
+			if errwrap.Contains(err, zappr.ErrZapprAlreadyExist.Error()) {
+				logger.Debug("zappr already enabled, moving on...")
+			} else if err != nil {
+				return errwrap.Wrapf("could not enable zappr: {{err}}", err)
 			}
 
 			return nil
