@@ -14,6 +14,7 @@ import (
 // Client represents a zappr client
 type Client interface {
 	Enable(repoID int) error
+	Disable(repoID int) error
 }
 
 type clientImpl struct {
@@ -36,6 +37,9 @@ var (
 
 	// ErrZapprAlreadyEnabled is used when "Enable" is called for a repo that Zappr is already enabled for
 	ErrZapprAlreadyEnabled = errors.New("zappr already enabled for the repo")
+
+	// ErrZapprAlreadyNotEnabled is used when "Disable" is called for a repo that Zappr is already NOT enabled for
+	ErrZapprAlreadyNotEnabled = errors.New("zappr is already not enabled for the repo")
 
 	// ErrZapprServerError is used when we receive a code different than 200 from Zappr
 	ErrZapprServerError = errors.New("unknown error from zappr")
@@ -91,6 +95,39 @@ func (c *clientImpl) Enable(repoID int) error {
 		// Zappr already active on the repo
 		if strings.HasPrefix(zapprErrorResponse.Detail, "Check approval already exists for repository") {
 			return ErrZapprAlreadyEnabled
+		}
+	}
+
+	return err
+}
+
+// Disable turns off Zappr approval check on a Github repo
+func (c *clientImpl) Disable(repoID int) error {
+	req, err := c.slingClient.Get(fmt.Sprintf("api/repos/%d?autoSync=true", repoID)).Request()
+	if err != nil {
+		return errwrap.Wrapf("could not fetch repo on zappr to enable approval check: {{err}}", err)
+	}
+
+	status, zapprErrorResponse, err := c.doRequest(req)
+	if err != nil {
+		return errwrap.Wrapf("could not fetch repo on zappr to enable approval check: {{err}}", err)
+	}
+
+	req, err = c.slingClient.Delete(fmt.Sprintf("%d/approval", repoID)).Request()
+	if err != nil {
+		return errwrap.Wrapf("could not Disable Zappr approval checks on repo: {{err}}", err)
+	}
+
+	status, zapprErrorResponse, err = c.doRequest(req)
+	if status == http.StatusServiceUnavailable && zapprErrorResponse != nil {
+		// Zappr active on the repo, but repo has been deleted from github
+		if strings.HasSuffix(zapprErrorResponse.Detail, "required_status_checks 404 Not Found") {
+			return ErrZapprAlreadyNotEnabled
+		}
+
+		// Repo is not on Zappr (enabled/disabled), and is also not on github (deleted or was not created at all)
+		if zapprErrorResponse.Detail == fmt.Sprintf("Repository %d not found.", repoID) {
+			return ErrZapprAlreadyNotEnabled
 		}
 	}
 
