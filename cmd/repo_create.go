@@ -110,7 +110,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 		HasPages:    github.Bool(opts.HasPages),
 		AutoInit:    github.Bool(true),
 	})
-	if errwrap.ContainsType(err, repo.ErrRepositoryAlreadyExists) {
+	if errwrap.Contains(err, repo.ErrRepositoryAlreadyExists.Error()) {
 		logger.Info("Repository already exists. Trying to normalize it...")
 	} else if err != nil {
 		return errwrap.Wrapf("could not create repository: {{err}}", err)
@@ -120,7 +120,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 		wg.Go(func() error {
 			logger.Info("Adding pull approve...")
 			err = creator.AddPullApprove(ctx, repoName, org, githubOpts.PullApprove)
-			if errwrap.ContainsType(err, repo.ErrPullApproveFileAlreadyExists) {
+			if errwrap.Contains(err, repo.ErrPullApproveFileAlreadyExists.Error()) {
 				logger.Debug("Pull approve already exists, moving on...")
 			} else if err != nil {
 				return errwrap.Wrapf("could not add pull approve: {{err}}", err)
@@ -157,7 +157,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 		wg.Go(func() error {
 			logger.Info("Adding labels to repository...")
 			err = creator.AddLabelsToRepo(ctx, repoName, org, githubOpts.Labels)
-			if errwrap.ContainsType(err, repo.ErrLabeAlreadyExists) {
+			if errwrap.Contains(err, repo.ErrLabeAlreadyExists.Error()) {
 				logger.Debug("Labels already exists, moving on...")
 			} else if err != nil {
 				return errwrap.Wrapf("could not add labels to repository: {{err}}", err)
@@ -171,7 +171,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 		wg.Go(func() error {
 			logger.Info("Adding webhooks to repository...")
 			err = creator.AddWebhooksToRepo(ctx, repoName, org, githubOpts.Webhooks)
-			if errwrap.ContainsType(err, repo.ErrWebhookAlreadyExist) {
+			if errwrap.Contains(err, repo.ErrWebhookAlreadyExist.Error()) {
 				logger.Debug("Webhook already exists, moving on...")
 			} else if err != nil {
 				return errwrap.Wrapf("could not add webhooks to repository: {{err}}", err)
