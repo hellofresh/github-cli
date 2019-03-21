@@ -157,7 +157,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 			}
 
 			err = zapprClient.Enable(*ghRepo.ID)
-			if errwrap.Contains(err, zappr.ErrZapprAlreadyExist.Error()) {
+			if errwrap.Contains(err, zappr.ErrZapprAlreadyEnabled.Error()) {
 				logger.Debug("zappr already enabled, moving on...")
 			} else if err != nil {
 				return errwrap.Wrapf("could not enable zappr: {{err}}", err)
