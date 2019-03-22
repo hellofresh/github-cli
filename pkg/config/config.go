@@ -19,6 +19,7 @@ type (
 		Github        Github
 		GithubTestOrg Github
 		PullApprove   PullApprove
+		Zappr         Zappr
 	}
 
 	// PullApprove represents teh Pull Approve configurations
@@ -26,6 +27,12 @@ type (
 		Token               string
 		Filename            string
 		ProtectedBranchName string
+	}
+
+	// Zappr represents Zappr configurations
+	Zappr struct {
+		URL   string
+		Token string
 	}
 
 	// Github represents the github configurations
@@ -96,6 +103,9 @@ func NewContext(ctx context.Context, configFile string) (context.Context, error)
 
 	viper.SetDefault("github.token", os.Getenv("GITHUB_TOKEN"))
 	viper.SetDefault("githubtestorg.token", os.Getenv("GITHUB_TOKEN"))
+
+	viper.SetDefault("zappr.url", os.Getenv("ZAPPR_URL"))
+	viper.SetDefault("zappr.token", os.Getenv("ZAPPR_TOKEN"))
 
 	err := viper.ReadInConfig()
 	if err != nil {
