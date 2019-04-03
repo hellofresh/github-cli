@@ -1,14 +1,6 @@
-# Where your public ssh key that is registered on Github is. By default it 
+# Where your public ssh key that is registered on Github is. By default it
 # looks in your ssh folder for a file called `id_rsa`
 # PublicKeyPath = ~/.ssh/id_rsa
-
-[pullapprove]
-    # Defines the pull approve organization
-    Token=""
-    # Defines the pull approve filename
-    filename="./.pullapprove.yml"
-    # Defines the pull approve branch
-    protectedBranchName="master"
 
 # Zappr Config
 [zappr]
@@ -20,16 +12,19 @@
 
 [github]
     # Defines the github organization
-    Organization="yourOrg"
+    Organization="hellofresh"
 
     # Defines the github token
+    # Create a new one here: https://github.com/settings/tokens/new with `repo` access
     Token=""
 
     # Defines permission specifies the permission to grant the team on this repository.
-	# Possible values are:
-	#     pull - team members can pull, but not push to or administer this repository
-	#     push - team members can pull and push, but not administer this repository
-	#     admin - team members can pull, push and administer this repository
+  	# Possible values are:
+  	#     pull - team members can pull, but not push to or administer this repository
+  	#     push - team members can pull and push, but not administer this repository
+  	#     admin - team members can pull, push and administer this repository
+
+    # To get a team ID: curl -s -i -X GET -u TOKEN:x-oauth-basic -d '' https://api.github.com/orgs/hellofresh/teams | grep -A1 "TEAM_NAME"
     Teams=[
         #Example
         {ID=1234, Permission='pull'},
@@ -43,7 +38,8 @@
 
     # Adds a set of labels when creating the repo
     Labels=[
-        {Name='custom', Color='ad974f'}, 
+        {Name="Please CR", Color="c2e0c6"},
+        {Name="Do not merge", Color="b60205"},
     ]
 
     # Removes the default github's labels
@@ -55,7 +51,7 @@
     ]
 
     # Defines branch protections
-    Protections={master=["code-review/pullapprove"]}
+    Protections={master=["zappr"]}
 
 [githubtestorg]
     # Defines the github test organization
