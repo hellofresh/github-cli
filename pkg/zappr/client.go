@@ -145,7 +145,7 @@ func (c *clientImpl) doRequest(req *http.Request) (int, *zapprErrorResponse, err
 	resp, err := c.slingClient.Do(req, nil, zapprErrorResponse)
 
 	if resp == nil {
-		return http.StatusInternalServerError, nil, ErrZapprServerError
+		return http.StatusInternalServerError, nil, errwrap.Wrap(ErrZapprServerError, err)
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized {
