@@ -144,6 +144,12 @@ func (c *clientImpl) doRequest(req *http.Request) (int, *zapprErrorResponse, err
 	zapprErrorResponse := &zapprErrorResponse{}
 	resp, err := c.slingClient.Do(req, nil, zapprErrorResponse)
 
+	if resp == nil {
+		// Even though 0 does not seem like a valid http response code
+		// The status would be ignored by any calling code anyway since a non-nil error is returned
+		return 0, nil, errwrap.Wrap(ErrZapprServerError, err)
+	}
+
 	if resp.StatusCode == http.StatusUnauthorized {
 		return resp.StatusCode, nil, ErrZapprUnauthorized
 	}
@@ -153,7 +159,7 @@ func (c *clientImpl) doRequest(req *http.Request) (int, *zapprErrorResponse, err
 			return resp.StatusCode, zapprErrorResponse, errwrap.Wrap(errors.New(zapprErrorResponse.Detail), ErrZapprServerError)
 		}
 
-		return resp.StatusCode, nil, ErrZapprServerError
+		return resp.StatusCode, nil, errwrap.Wrap(ErrZapprServerError, err)
 	}
 
 	return resp.StatusCode, nil, err

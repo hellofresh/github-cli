@@ -32,7 +32,7 @@ func TestAuthWithGithubToken(t *testing.T) {
 
 	client.Enable(1)
 
-	// Assert expected calls we made to Zappr
+	// Assert expected calls were made to Zappr
 	zapprMock.AssertExpectations(t)
 }
 
@@ -58,7 +58,7 @@ func TestAuthWithZapprToken(t *testing.T) {
 
 	client.Enable(1)
 
-	// Assert expected calls we made to Zappr
+	// Assert expected calls were made to Zappr
 	zapprMock.AssertExpectations(t)
 }
 
@@ -94,7 +94,7 @@ func TestArbitraryErrorWithJSONErrorBodyFromZappr(t *testing.T) {
 	// Assert error detail retured by zappr is in returned error
 	assert.True(t, errwrap.Contains(err, "Strange error message"), err)
 
-	// Assert expected calls we made to Zappr
+	// Assert expected calls were made to Zappr
 	zapprMock.AssertExpectations(t)
 }
 
@@ -122,7 +122,7 @@ func TestArbitraryErrorWithNonJSONErrorBodyFromZappr(t *testing.T) {
 	// Assert "unknown zappr" error was returned
 	assert.True(t, errwrap.Contains(err, ErrZapprServerError.Error()))
 
-	// Assert expected calls we made to Zappr
+	// Assert expected calls were made to Zappr
 	zapprMock.AssertExpectations(t)
 }
 
@@ -149,7 +149,7 @@ func TestEnable(t *testing.T) {
 	// Assert no errors were received
 	assert.Nil(t, err)
 
-	// Assert expected calls we made to Zappr
+	// Assert expected calls were made to Zappr
 	zapprMock.AssertExpectations(t)
 }
 
@@ -182,7 +182,7 @@ func TestEnable_AlreadyExist(t *testing.T) {
 	// Assert "already enabled" error was returned
 	assert.Equal(t, ErrZapprAlreadyEnabled, err)
 
-	// Assert expected calls we made to Zappr
+	// Assert expected calls were made to Zappr
 	zapprMock.AssertExpectations(t)
 }
 
@@ -209,7 +209,7 @@ func TestDisable(t *testing.T) {
 	// Assert no errors were received
 	assert.Nil(t, err)
 
-	// Assert expected calls we made to Zappr
+	// Assert expected calls were made to Zappr
 	zapprMock.AssertExpectations(t)
 }
 
@@ -242,7 +242,7 @@ func TestDisable_RepoDeletedFromGithub(t *testing.T) {
 	// Assert "already not enabled" error was returned
 	assert.Equal(t, ErrZapprAlreadyNotEnabled, err)
 
-	// Assert expected calls we made to Zappr
+	// Assert expected calls were made to Zappr
 	zapprMock.AssertExpectations(t)
 }
 
@@ -275,6 +275,23 @@ func TestDisable_RepoDeletedFromGithub_AndNotOnZappr(t *testing.T) {
 	// Assert "already not enabled" error was returned
 	assert.Equal(t, ErrZapprAlreadyNotEnabled, err)
 
-	// Assert expected calls we made to Zappr
+	// Assert expected calls were made to Zappr
+	zapprMock.AssertExpectations(t)
+}
+
+func TestProblematicRequest(t *testing.T) {
+	// Get the Zappr Client, Mock Handler and Test Server
+	client, zapprMock, testServer := NewMockAndHandlerNilResponse()
+
+	// Start the test server and stop it when done
+	testServer.Start()
+	defer testServer.Close()
+
+	err := client.Enable(1)
+
+	// Assert "unknown zappr" error was returned
+	assert.True(t, errwrap.Contains(err, ErrZapprServerError.Error()))
+
+	// Assert expected calls were made to Zappr
 	zapprMock.AssertExpectations(t)
 }

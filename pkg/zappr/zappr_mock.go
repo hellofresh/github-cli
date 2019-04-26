@@ -1,6 +1,7 @@
 package zappr
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -46,11 +47,31 @@ func newMockAndHandler() (*http.Client, *test.MockHandler, *test.Server) {
 	return httpClient, mockHandler, mockServer
 }
 
+func newMockAndHandlerWithNilResponseTransport() (*http.Client, *test.MockHandler, *test.Server) {
+	mockHandler := &test.MockHandler{}
+	mockServer := test.NewUnstartedServer(mockHandler)
+
+	httpClient := &http.Client{
+		Transport: &NilResponseTransport{},
+	}
+
+	return httpClient, mockHandler, mockServer
+}
+
 // NewMockAndHandler returns a Zappr Client that uses Github Token, Mockhandler, and Server. The client proxies
 // requests to the server and handlers can be registered on the mux to handle
 // requests. The caller must close the test server.
 func NewMockAndHandler() (Client, *test.MockHandler, *test.Server) {
 	return NewMockAndHandlerWithGithubToken("1234567890")
+}
+
+// NewMockAndHandlerNilResponse returns a Zappr Client that uses Github Token, Mockhandler, and Server.
+// The internal http client always returns a nil response object.
+func NewMockAndHandlerNilResponse() (Client, *test.MockHandler, *test.Server) {
+	httpClient, mockHandler, mockServer := newMockAndHandlerWithNilResponseTransport()
+	client := NewWithGithubToken("https://fake.zappr/", "1234567890", httpClient)
+
+	return client, mockHandler, mockServer
 }
 
 // NewMockAndHandlerWithGithubToken returns a Zappr Client that uses Github Token, Mockhandler, and Server. The client proxies
@@ -87,4 +108,15 @@ func (t *RewriteTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		return http.DefaultTransport.RoundTrip(req)
 	}
 	return t.Transport.RoundTrip(req)
+}
+
+// NilResponseTransport always returns a nil response object
+type NilResponseTransport struct {
+	Transport http.RoundTripper
+}
+
+// RoundTrip rewrites the request scheme to http and calls through to the
+// composed RoundTripper or if it is nil, to the http.DefaultTransport.
+func (t *NilResponseTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return nil, errors.New("some error")
 }
