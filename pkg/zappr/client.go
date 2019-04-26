@@ -145,7 +145,9 @@ func (c *clientImpl) doRequest(req *http.Request) (int, *zapprErrorResponse, err
 	resp, err := c.slingClient.Do(req, nil, zapprErrorResponse)
 
 	if resp == nil {
-		return http.StatusInternalServerError, nil, errwrap.Wrap(ErrZapprServerError, err)
+		// Even though 0 does not seem like a valid http response code
+		// The status would be ignored by any calling code anyway since a non-nil error is returned
+		return 0, nil, errwrap.Wrap(ErrZapprServerError, err)
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized {
