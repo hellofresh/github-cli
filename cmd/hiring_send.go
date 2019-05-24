@@ -14,6 +14,7 @@ import (
 	"github.com/hellofresh/github-cli/pkg/repo"
 	"github.com/spf13/cobra"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
@@ -25,11 +26,15 @@ type (
 // NewHiringSendCmd creates a new send hiring test command
 func NewHiringSendCmd(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "send [username] [repo]",
-		Short: "Creates a new hellofresh hiring test",
-		Long:  `Creates a new hellofresh hiring test based on the rules defined on your .github.toml`,
+		Use:   "send [username] [repo] [branch]",
+		Short: "Creates a new HelloFresh hiring test",
+		Long:  `Creates a new HelloFresh hiring test based on the rules defined on your .github.toml`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunCreateTestRepo(ctx, args[0], args[1])
+			branch := plumbing.Master
+			if len(args) > 2 {
+				branch = plumbing.ReferenceName("refs/heads/" + args[2])
+			}
+			return RunCreateTestRepo(ctx, args[0], args[1], branch)
 		},
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 || args[0] == "" {
@@ -48,7 +53,7 @@ func NewHiringSendCmd(ctx context.Context) *cobra.Command {
 }
 
 // RunCreateTestRepo runs the command to create a new hiring test repository
-func RunCreateTestRepo(ctx context.Context, candidate string, testRepo string) error {
+func RunCreateTestRepo(ctx context.Context, candidate string, testRepo string, reference plumbing.ReferenceName) error {
 	var err error
 
 	logger := log.WithContext(ctx)
@@ -93,8 +98,9 @@ func RunCreateTestRepo(ctx context.Context, candidate string, testRepo string) e
 
 	logger.Info("Cloning repository...")
 	r, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
-		Progress: os.Stdout,
-		URL:      fmt.Sprintf("https://%s@github.com/%s/%s", cfg.GithubTestOrg.Token, org, testRepo),
+		Progress:      os.Stdout,
+		URL:           fmt.Sprintf("https://%s@github.com/%s/%s", cfg.GithubTestOrg.Token, org, testRepo),
+		ReferenceName: reference,
 	})
 	if err != nil {
 		return errwrap.Wrapf("error cloning to repository: {{err}}", err)
