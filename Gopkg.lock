@@ -334,12 +334,12 @@
   version = "v0.5.4"
 
 [[projects]]
-  branch = "master"
-  digest = "1:571df6bf4aef9fabe4fdab3d2eb6d2db310659337b513593eea6906a5930ce6b"
+  digest = "1:172f94a6b3644a8f9e6b5e5b7fc9fe1e42d424f52a0300b2e7ab1e57db73f85d"
   name = "github.com/xanzy/ssh-agent"
   packages = ["."]
   pruneopts = ""
-  revision = "ba9c9e33906f58169366275e3450db66139a31a9"
+  revision = "6a3e2ff9e7c564f36873c2e36413f634534f1c44"
+  version = "v0.2.1"
 
 [[projects]]
   branch = "master"
@@ -525,6 +525,7 @@
     "golang.org/x/oauth2",
     "golang.org/x/sync/errgroup",
     "gopkg.in/src-d/go-git.v4",
+    "gopkg.in/src-d/go-git.v4/plumbing",
     "gopkg.in/src-d/go-git.v4/storage/memory",
   ]
   solver-name = "gps-cdcl"
