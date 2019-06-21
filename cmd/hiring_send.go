@@ -71,8 +71,7 @@ func RunCreateTestRepo(ctx context.Context, candidate string, testRepo string, r
 	target := fmt.Sprintf("%s-%s", candidate, testRepo)
 
 	creator := repo.NewGithub(githubClient)
-
-	logger.Info("Creating repository...")
+	logger.Infof("Creating repository %s/%s...", org, target)
 	_, err = creator.CreateRepo(ctx, org, &github.Repository{
 		Name:      github.String(target),
 		Private:   github.Bool(true),
@@ -84,7 +83,7 @@ func RunCreateTestRepo(ctx context.Context, candidate string, testRepo string, r
 		return errwrap.Wrapf("could not create github repo for candidate: {{err}}", err)
 	}
 
-	logger.Info("Adding collaborators to repository...")
+	logger.Infof("Adding %s as collaborator to %s/%s", candidate, org, target)
 	collaboratorsOpts := []*config.Collaborator{
 		&config.Collaborator{
 			Username:   candidate,
@@ -106,11 +105,15 @@ func RunCreateTestRepo(ctx context.Context, candidate string, testRepo string, r
 		return errwrap.Wrapf("error cloning to repository: {{err}}", err)
 	}
 
+	logger.Debugf("Repository %s/%s cloned", org, testRepo)
+
 	logger.Info("Changing remote...")
 	remote, err := r.Remote(git.DefaultRemoteName)
 	if err != nil {
 		return errwrap.Wrapf("error changing remote for repository: {{err}}", err)
 	}
+
+	logger.Debugf("Remote on %s/%s changed to %s", org, testRepo, git.DefaultRemoteName)
 
 	logger.Info("Pushing changes...")
 	remote.Config().URLs = []string{fmt.Sprintf("https://%s@github.com/%s/%s", cfg.GithubTestOrg.Token, org, target)}

@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/hellofresh/github-cli/pkg/zappr"
 
@@ -86,6 +87,15 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 		return errors.New("please provide an organization")
 	}
 
+	logger.Debug("Create options:")
+	logger.Debugf("\tConfigure PullApprove? %s", strconv.FormatBool(opts.HasPullApprove))
+	logger.Debugf("\tConfigure Zappr? %s", strconv.FormatBool(opts.HasZappr))
+	logger.Debugf("\tConfigure GitHub teams? %s", strconv.FormatBool(opts.HasTeams))
+	logger.Debugf("\tConfigure collaborators? %s", strconv.FormatBool(opts.HasCollaborators))
+	logger.Debugf("\tAdd labels to repository? %s", strconv.FormatBool(opts.HasLabels))
+	logger.Debugf("\tAdd webhooks to repository? %s", strconv.FormatBool(opts.HasWebhooks))
+	logger.Debugf("\tConfigure branch protection? %s", strconv.FormatBool(opts.HasBranchProtections))
+
 	description := opts.Description
 	githubOpts := &repo.GithubRepoOpts{
 		PullApprove: &repo.PullApproveOpts{
@@ -104,7 +114,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 
 	creator := repo.NewGithub(githubClient)
 
-	logger.Info("Creating repository...")
+	logger.Infof("Creating repository %s/%s...", org, repoName)
 	ghRepo, err := creator.CreateRepo(ctx, org, &github.Repository{
 		Name:        github.String(repoName),
 		Description: github.String(description),
