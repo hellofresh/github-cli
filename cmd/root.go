@@ -46,9 +46,14 @@ func NewRootCmd() *cobra.Command {
 	}
 
 	cfg := config.WithContext(ctx)
+
 	if opts.token != "" {
 		cfg.Github.Token = opts.token
 		cfg.GithubTestOrg.Token = opts.token
+	}
+
+	if cfg.Github.Token == "" {
+		log.WithContext(ctx).Fatal("Github token not specified. Please set the GITHUB_TOKEN environment variable, set it in your config file, or provide it with the \"-t\" flag")
 	}
 
 	if opts.org != "" {
@@ -59,7 +64,7 @@ func NewRootCmd() *cobra.Command {
 
 	ctx, err = github.NewContext(ctx, cfg.Github.Token)
 	if err != nil {
-		log.WithContext(ctx).WithError(err).Fatal("Could not create the kube client")
+		log.WithContext(ctx).WithError(err).Fatal("could not create the kube client")
 	}
 
 	// Aggregates Root commands

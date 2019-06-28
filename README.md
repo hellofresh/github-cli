@@ -29,7 +29,7 @@ You will need to fill in the following values to be able to create a repo:
 
 ### Zappr `zappr`
 
-For Zappr you will need a Zappr URL and a Zappr token, the URL is the base URL of your zappr configuration and the token can be found when you login into the UI and copy the value of any request going out the same domain. The cookies that you need are http-only so you can't access them through JS. Just look for a request with the `Cookie:` header and then copy the value.
+For Zappr you will need to specify the URL to Zappr, the URL is the base URL of Zappr, its typically `https://zappr.tools-k8s.hellofresh.io`.
 
 ### GitHub `github`
 

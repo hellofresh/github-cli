@@ -20,19 +20,20 @@ import (
 
 // CreateRepoOptions are the flags for the create repository command
 type CreateRepoOptions struct {
-	Description          string
-	Private              bool
-	HasPullApprove       bool
-	HasZappr             bool
-	HasTeams             bool
-	HasCollaborators     bool
-	HasLabels            bool
-	HasDefaultLabels     bool
-	HasWebhooks          bool
-	HasBranchProtections bool
-	HasIssues            bool
-	HasWiki              bool
-	HasPages             bool
+	Description               string
+	Private                   bool
+	HasPullApprove            bool
+	HasZappr                  bool
+	UseZapprGithubCredentials bool
+	HasTeams                  bool
+	HasCollaborators          bool
+	HasLabels                 bool
+	HasDefaultLabels          bool
+	HasWebhooks               bool
+	HasBranchProtections      bool
+	HasIssues                 bool
+	HasWiki                   bool
+	HasPages                  bool
 }
 
 // NewCreateRepoCmd creates a new create repo command
@@ -68,6 +69,7 @@ func NewCreateRepoCmd(ctx context.Context) *cobra.Command {
 	cmd.Flags().BoolVar(&opts.HasDefaultLabels, "rm-default-labels", true, "Removes the default github labels")
 	cmd.Flags().BoolVar(&opts.HasWebhooks, "has-webhooks", false, "Enables webhooks configurations")
 	cmd.Flags().BoolVar(&opts.HasBranchProtections, "has-branch-protections", true, "Enables branch protections")
+	cmd.Flags().BoolVar(&opts.UseZapprGithubCredentials, "use-zappr-credentials", true, "Enables authenticating to Github as Zapps App")
 
 	return cmd
 }
@@ -95,6 +97,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 	logger.Debugf("\tAdd labels to repository? %s", strconv.FormatBool(opts.HasLabels))
 	logger.Debugf("\tAdd webhooks to repository? %s", strconv.FormatBool(opts.HasWebhooks))
 	logger.Debugf("\tConfigure branch protection? %s", strconv.FormatBool(opts.HasBranchProtections))
+	logger.Debugf("\tAuthenticate to Github as Zappr? %s", strconv.FormatBool(opts.UseZapprGithubCredentials))
 
 	description := opts.Description
 	githubOpts := &repo.GithubRepoOpts{
@@ -158,17 +161,23 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 			}
 
 			var zapprClient zappr.Client
-			if cfg.Zappr.Token == "" {
-				logger.Debug("Authenticating to Zappr using Github token")
-				zapprClient = zappr.NewWithGithubToken(cfg.Zappr.URL, cfg.Github.Token, nil)
-			} else {
-				logger.Debug("Authenticating to Zappr using Zappr token")
-				zapprClient = zappr.NewWithZapprToken(cfg.Zappr.URL, cfg.Zappr.Token, nil)
+			zapprClient = zappr.New(cfg.Zappr.URL, cfg.Github.Token, nil)
+
+			if cfg.Zappr.UseZapprGithubCredentials {
+				logger.Debug("Retrieving token for zappr github app from zappr")
+				err = zapprClient.ImpersonateGitHubApp()
+				if err != nil {
+					if errwrap.Contains(err, zappr.ErrZapprUnauthorized.Error()) {
+						return errwrap.Wrapf("could not retrieve token representing github zappr app from zappr. it seems you have not logged in to zappr, if you have, please logout from zappr, log back in and try again: {{err}}", err)
+					}
+
+					return errwrap.Wrapf("could not retrieve token representing github zappr app from zappr: {{err}}", err)
+				}
 			}
 
 			err = zapprClient.Enable(*ghRepo.ID)
 			if errwrap.Contains(err, zappr.ErrZapprAlreadyEnabled.Error()) {
-				logger.Debug("zappr already enabled, moving on...")
+				logger.Debug("Zappr already enabled, moving on...")
 			} else if err != nil {
 				return errwrap.Wrapf("could not enable zappr: {{err}}", err)
 			}

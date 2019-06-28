@@ -31,8 +31,8 @@ type (
 
 	// Zappr represents Zappr configurations
 	Zappr struct {
-		URL   string
-		Token string
+		URL                       string
+		UseZapprGithubCredentials bool
 	}
 
 	// Github represents the github configurations
@@ -105,7 +105,8 @@ func NewContext(ctx context.Context, configFile string) (context.Context, error)
 	viper.SetDefault("githubtestorg.token", os.Getenv("GITHUB_TOKEN"))
 
 	viper.SetDefault("zappr.url", os.Getenv("ZAPPR_URL"))
-	viper.SetDefault("zappr.token", os.Getenv("ZAPPR_TOKEN"))
+	viper.SetDefault("zappr.usezapprgithubcredentials", true)
+	viper.BindEnv("ZAPPR_USE_APP_CREDENTIALS", "zappr.usezapprgithubcredentials")
 
 	err := viper.ReadInConfig()
 	if err != nil {
