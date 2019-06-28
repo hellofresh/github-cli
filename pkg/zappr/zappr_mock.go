@@ -9,25 +9,21 @@ import (
 	"github.com/hellofresh/github-cli/pkg/test"
 )
 
-func getDefaultHeader() *http.Header {
+func getDefaultHeader(addContentLength bool) *http.Header {
 	header := &http.Header{}
 	header.Add("User-Agent", "Go-http-client/1.1")
 	header.Add("Accept-Encoding", "gzip")
-	header.Add("Content-Length", "0")
+
+	if addContentLength {
+		header.Add("Content-Length", "0")
+	}
 
 	return header
 }
 
-func getGithubAuthHeader(token string) *http.Header {
-	authHeader := getDefaultHeader()
+func getGithubAuthHeader(token string, addContentLength bool) *http.Header {
+	authHeader := getDefaultHeader(addContentLength)
 	authHeader.Add("Authorization", fmt.Sprintf("token %s", token))
-
-	return authHeader
-}
-
-func getZapprAuthHeader(token string) *http.Header {
-	authHeader := getDefaultHeader()
-	authHeader.Add("Cookie", token)
 
 	return authHeader
 }
@@ -69,7 +65,7 @@ func NewMockAndHandler() (Client, *test.MockHandler, *test.Server) {
 // The internal http client always returns a nil response object.
 func NewMockAndHandlerNilResponse() (Client, *test.MockHandler, *test.Server) {
 	httpClient, mockHandler, mockServer := newMockAndHandlerWithNilResponseTransport()
-	client := NewWithGithubToken("https://fake.zappr/", "1234567890", httpClient)
+	client := New("https://fake.zappr/", "1234567890", httpClient)
 
 	return client, mockHandler, mockServer
 }
@@ -79,17 +75,7 @@ func NewMockAndHandlerNilResponse() (Client, *test.MockHandler, *test.Server) {
 // requests. The caller must close the test server.
 func NewMockAndHandlerWithGithubToken(githubToken string) (Client, *test.MockHandler, *test.Server) {
 	httpClient, mockHandler, mockServer := newMockAndHandler()
-	client := NewWithGithubToken("https://fake.zappr/", githubToken, httpClient)
-
-	return client, mockHandler, mockServer
-}
-
-// NewMockAndHandlerWithZapprToken returns a Zappr Client that uses Zappr Token, Mockhandler, and Server. The client proxies
-// requests to the server and handlers can be registered on the mux to handle
-// requests. The caller must close the test server.
-func NewMockAndHandlerWithZapprToken(zapprToken string) (Client, *test.MockHandler, *test.Server) {
-	httpClient, mockHandler, mockServer := newMockAndHandler()
-	client := NewWithZapprToken("https://fake.zappr/", zapprToken, httpClient)
+	client := New("https://fake.zappr", githubToken, httpClient)
 
 	return client, mockHandler, mockServer
 }

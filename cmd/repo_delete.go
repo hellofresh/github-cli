@@ -59,13 +59,7 @@ func RunDeleteRepo(ctx context.Context, name string, opts *DeleteRepoOpts) error
 	}
 
 	var zapprClient zappr.Client
-	if cfg.Zappr.Token == "" {
-		logger.Debug("Authenticating to Zappr using Github token")
-		zapprClient = zappr.NewWithGithubToken(cfg.Zappr.URL, cfg.Github.Token, nil)
-	} else {
-		logger.Debug("Authenticating to Zappr using Zappr token")
-		zapprClient = zappr.NewWithZapprToken(cfg.Zappr.URL, cfg.Zappr.Token, nil)
-	}
+	zapprClient = zappr.New(cfg.Zappr.URL, cfg.Github.Token, nil)
 
 	logger.Debug("Disabling Zappr on repo...")
 	err = zapprClient.Disable(*ghRepo.ID)

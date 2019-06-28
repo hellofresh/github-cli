@@ -7,8 +7,8 @@
     # Defines the url for Zappr. Comment it out to load it from ZAPPR_URL environment variable
     URL="https://zappr.domain.com"
 
-    # Defines the Zappr token. Comment it out to load it from ZAPPR_TOKEN environment variable
-    Token=""
+    # Specifies if calls made by Zappr to Github should use its own Client token or yours. Comment it out to load it from ZAPPR_USE_APP_CREDENTIALS environment variable
+    UseZapprGithubCredentials="true"
 
 [github]
     # Defines the github organization

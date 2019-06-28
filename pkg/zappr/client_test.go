@@ -1,6 +1,7 @@
 package zappr
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -21,38 +22,12 @@ func TestAuthWithGithubToken(t *testing.T) {
 	defer testServer.Close()
 
 	// Should call the "fetch repo" zappr endpoint to find the just created repo
-	zapprMock.On("Handle", "GET", "/api/repos/1?autoSync=true", mock.Anything, mock.Anything).Return(test.Response{
+	zapprMock.On("Handle", "GET", "/api/repos/1?autoSync=true", getGithubAuthHeader(token, false), mock.Anything).Return(test.Response{
 		Status: http.StatusOK,
 	})
 
 	// Add handlers to define expected call(s) to, and response(s) from Zappr
-	zapprMock.On("Handle", "PUT", "/api/repos/1/approval", getGithubAuthHeader(token), mock.Anything).Return(test.Response{
-		Status: http.StatusCreated,
-	})
-
-	client.Enable(1)
-
-	// Assert expected calls were made to Zappr
-	zapprMock.AssertExpectations(t)
-}
-
-func TestAuthWithZapprToken(t *testing.T) {
-	token := "abcdefgh"
-
-	// Get the Zappr Client, Mock Handler and Test Server
-	client, zapprMock, testServer := NewMockAndHandlerWithZapprToken(token)
-
-	// Start the test server and stop it when done
-	testServer.Start()
-	defer testServer.Close()
-
-	// Should call the "fetch repo" zappr endpoint to find the just created repo
-	zapprMock.On("Handle", "GET", "/api/repos/1?autoSync=true", mock.Anything, mock.Anything).Return(test.Response{
-		Status: http.StatusOK,
-	})
-
-	// Add handlers to define expected call(s) to, and response(s) from Zappr
-	zapprMock.On("Handle", "PUT", "/api/repos/1/approval", getZapprAuthHeader(token), mock.Anything).Return(test.Response{
+	zapprMock.On("Handle", "PUT", "/api/repos/1/approval", getGithubAuthHeader(token, true), mock.Anything).Return(test.Response{
 		Status: http.StatusCreated,
 	})
 
@@ -291,6 +266,50 @@ func TestProblematicRequest(t *testing.T) {
 
 	// Assert "unknown zappr" error was returned
 	assert.True(t, errwrap.Contains(err, ErrZapprServerError.Error()))
+
+	// Assert expected calls were made to Zappr
+	zapprMock.AssertExpectations(t)
+}
+
+func TestImpersonateGitHubApp(t *testing.T) {
+	token := "12345678"
+	zapprAppToken := "abcdefgh"
+
+	// Get the Zappr Client, Mock Handler and Test Server
+	client, zapprMock, testServer := NewMockAndHandlerWithGithubToken(token)
+
+	// Start the test server and stop it when done
+	testServer.Start()
+	defer testServer.Close()
+
+	// Should call the "apptoken" zappr endpoint to get the github token representing zappr app and use the users github token
+	zapprMock.On("Handle", "GET", "/api/apptoken", getGithubAuthHeader(token, false), mock.Anything).Return(test.Response{
+		Status: http.StatusOK,
+		Body:   []byte(fmt.Sprintf(`{ "token": "%s" }`, zapprAppToken)),
+	})
+
+	err := client.ImpersonateGitHubApp()
+
+	// Assert no errors were received
+	assert.Nil(t, err)
+
+	// Assert expected calls were made to Zappr
+	zapprMock.AssertExpectations(t)
+
+	// reset expectations, i need to use the same mock object that is using the retrieved zappr app github token
+	zapprMock.ExpectedCalls = []*mock.Call{}
+
+	// Should call the "fetch repo" zappr endpoint to find the just created repo and use zappr app's github token
+	zapprMock.On("Handle", "GET", "/api/repos/1?autoSync=true", getGithubAuthHeader(zapprAppToken, false), mock.Anything).Return(test.Response{
+		Status: http.StatusOK,
+	})
+
+	// Add handlers to define expected call(s) to, and response(s) from Zappr and use zappr app's github token
+	zapprMock.On("Handle", "PUT", "/api/repos/1/approval", getGithubAuthHeader(zapprAppToken, true), mock.Anything).Return(test.Response{
+		Status: http.StatusCreated,
+	})
+
+	client.Enable(1)
 
 	// Assert expected calls were made to Zappr
 	zapprMock.AssertExpectations(t)
