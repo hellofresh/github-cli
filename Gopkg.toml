@@ -34,7 +34,7 @@
 
 [[constraint]]
   name = "gopkg.in/src-d/go-git.v4"
-  revision = "f9879dd043f84936a1f8acb8a53b74332a7ae135"
+  revision = "v4.10.0"
 
 [[constraint]]
   branch = "master"
