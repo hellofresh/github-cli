@@ -11,14 +11,9 @@ PKG_SRC := $(IMPORT_PATH)
 
 GO_PROJECT_PACKAGES=`go list ./... | grep -v /vendor/`
 
-.PHONY: all clean deps build
+.PHONY: all clean build
 
-all: clean deps build
-
-deps:
-	@echo "$(OK_COLOR)==> Installing dependencies$(NO_COLOR)"
-	@go get -u github.com/golang/dep/cmd/dep
-	@dep ensure
+all: clean build
 
 # Builds the project
 build: install
@@ -30,7 +25,7 @@ install:
 
 test:
 	go test ${GO_PROJECT_PACKAGES} -v
-	
+
 # Cleans our project: deletes binaries
 clean:
 	@echo "$(OK_COLOR)==> Cleaning project$(NO_COLOR)"
