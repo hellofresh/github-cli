@@ -1,11 +1,11 @@
-project_name: kangal
+project_name: github-cli
 
 builds:
   - id: binary-build
     main: main.go
     binary: github-cli
     ldflags:
-      - -s -w -X main.version={{.Version}}
+      - -s -w -X github.com/hellofresh/github-cli/cmd.version=={{.Version}}
     env:
       - CGO_ENABLED=0
     goos:

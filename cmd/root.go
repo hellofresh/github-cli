@@ -3,11 +3,12 @@ package cmd
 import (
 	"context"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
 	"github.com/hellofresh/github-cli/pkg/config"
 	"github.com/hellofresh/github-cli/pkg/github"
 	"github.com/hellofresh/github-cli/pkg/log"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 )
 
 type (

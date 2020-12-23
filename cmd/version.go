@@ -3,11 +3,12 @@ package cmd
 import (
 	"context"
 
-	"github.com/hellofresh/github-cli/pkg/log"
 	"github.com/spf13/cobra"
+
+	"github.com/hellofresh/github-cli/pkg/log"
 )
 
-var version = "0.0.15"
+var version = "0.0.0-dev"
 
 // NewVersionCmd creates a new version command
 func NewVersionCmd(ctx context.Context) *cobra.Command {

@@ -31,3 +31,15 @@ jobs:
       - name: Run tests
         if: success()
         run: make test
+      - name: Upload codecov
+        uses: codecov/codecov-action@v1
+        if: success()
+        with:
+          file: ./coverage.txt
+          fail_ci_if_error: false
+      - name: Test GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          args: release --skip-publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
