@@ -7,7 +7,7 @@ import (
 
 	"github.com/hellofresh/github-cli/pkg/zappr"
 
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v33/github"
 	"github.com/hashicorp/errwrap"
 	"github.com/hellofresh/github-cli/pkg/config"
 	gh "github.com/hellofresh/github-cli/pkg/github"
@@ -175,7 +175,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 				}
 			}
 
-			err = zapprClient.Enable(*ghRepo.ID)
+			err = zapprClient.Enable(int(*ghRepo.ID))
 			if errwrap.Contains(err, zappr.ErrZapprAlreadyEnabled.Error()) {
 				logger.Debug("Zappr already enabled, moving on...")
 			} else if err != nil {

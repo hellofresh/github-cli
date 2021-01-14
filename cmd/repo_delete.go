@@ -62,7 +62,7 @@ func RunDeleteRepo(ctx context.Context, name string, opts *DeleteRepoOpts) error
 	zapprClient = zappr.New(cfg.Zappr.URL, cfg.Github.Token, nil)
 
 	logger.Debug("Disabling Zappr on repo...")
-	err = zapprClient.Disable(*ghRepo.ID)
+	err = zapprClient.Disable(int(*ghRepo.ID))
 	if errwrap.Contains(err, zappr.ErrZapprAlreadyNotEnabled.Error()) {
 		logger.Debug("zappr already not enabled, moving on...")
 	} else if err != nil {

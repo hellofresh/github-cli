@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v33/github"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hellofresh/github-cli/pkg/config"
 	"github.com/hellofresh/github-cli/pkg/pullapprove"
@@ -119,11 +119,16 @@ func (c *GithubRepo) AddTeamsToRepo(ctx context.Context, repo string, org string
 	}
 
 	for _, team := range teams {
-		opt := &github.OrganizationAddTeamRepoOptions{
+		opt := &github.TeamAddTeamRepoOptions{
 			Permission: team.Permission,
 		}
 
-		if _, ghErr := c.GithubClient.Organizations.AddTeamRepo(ctx, team.ID, org, repo, opt); ghErr != nil {
+		orgInfo, _, ghErr := c.GithubClient.Organizations.Get(ctx, org)
+		if ghErr != nil {
+			return err
+		}
+
+		if _, ghErr := c.GithubClient.Teams.AddTeamRepoByID(ctx, orgInfo.GetID(), int64(team.ID), "", repo, opt); ghErr != nil {
 			err = multierror.Append(err, ghErr)
 		}
 	}
@@ -173,7 +178,6 @@ func (c *GithubRepo) AddWebhooksToRepo(ctx context.Context, repo string, org str
 
 	for _, webhook := range webhooks {
 		hook := &github.Hook{
-			Name:   github.String(webhook.Type),
 			Config: webhook.Config,
 		}
 		_, _, err = c.GithubClient.Repositories.CreateHook(ctx, org, repo, hook)
@@ -214,7 +218,7 @@ func (c *GithubRepo) AddCollaborators(ctx context.Context, repo string, org stri
 			Permission: collaborator.Permission,
 		}
 
-		if _, ghErr := c.GithubClient.Repositories.AddCollaborator(ctx, org, repo, collaborator.Username, opt); ghErr != nil {
+		if _, _, ghErr := c.GithubClient.Repositories.AddCollaborator(ctx, org, repo, collaborator.Username, opt); ghErr != nil {
 			err = multierror.Append(err, ghErr)
 		}
 	}
