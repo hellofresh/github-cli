@@ -72,7 +72,7 @@ func RunUnseat(ctx context.Context, opts *UnseatOpts) error {
 
 	logger.Info("Removing outside colaborators...")
 	for _, repo := range allRepos {
-		if isRepoInactive(repo) {
+		if isRepoInactive(ctx, repo) {
 			continue
 		}
 
@@ -133,7 +133,14 @@ func fetchAllRepos(ctx context.Context, owner string, reposPerPage int, page int
 	return allRepos, nil
 }
 
-func isRepoInactive(repo *github.Repository) bool {
+func isRepoInactive(ctx context.Context, repo *github.Repository) bool {
+	logger := log.WithContext(ctx)
+
+	if repo.PushedAt == nil {
+		logger.Debugf("Pushed at is nil, skipping [%d]", repo.Name)
+		return false
+	}
+
 	diff := time.Since(repo.PushedAt.Time)
 	weeksAgo := roundTime(diff.Seconds() / weekInSeconds)
 
