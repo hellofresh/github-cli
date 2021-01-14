@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/google/go-github/github"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/storage/memory"
+	"github.com/google/go-github/v33/github"
 	"github.com/hashicorp/errwrap"
 	"github.com/hellofresh/github-cli/pkg/config"
 	gh "github.com/hellofresh/github-cli/pkg/github"
 	"github.com/hellofresh/github-cli/pkg/log"
 	"github.com/hellofresh/github-cli/pkg/repo"
 	"github.com/spf13/cobra"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
 type (
