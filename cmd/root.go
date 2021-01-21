@@ -33,6 +33,7 @@ func NewRootCmd() *cobra.Command {
 				log.WithContext(context.Background()).SetLevel(logrus.DebugLevel)
 			}
 		},
+		Version: version,
 	}
 
 	cmd.PersistentFlags().StringVarP(&opts.configFile, "config", "c", "", "config file (default is $HOME/.github.toml)")
