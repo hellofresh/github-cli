@@ -26,6 +26,7 @@ gin-bin
 
 _book
 /vendor
+coverage.txt
 
 # HF config files
 /dist

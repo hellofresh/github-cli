@@ -2,12 +2,17 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"runtime"
+	"strings"
+	"time"
 
-	"github.com/hashicorp/errwrap"
-	"github.com/hellofresh/github-cli/pkg/log"
-	"github.com/italolelis/goupdater"
+	"github.com/hellofresh/updater-go/v2"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/hellofresh/github-cli/pkg/log"
 )
 
 const (
@@ -16,7 +21,9 @@ const (
 )
 
 // UpdateOptions are the command flags
-type UpdateOptions struct{}
+type UpdateOptions struct {
+	timeout time.Duration
+}
 
 // NewUpdateCmd creates a new update command
 func NewUpdateCmd(ctx context.Context) *cobra.Command {
@@ -31,6 +38,8 @@ func NewUpdateCmd(ctx context.Context) *cobra.Command {
 		},
 	}
 
+	cmd.PersistentFlags().DurationVar(&opts.timeout, "timeout", 10*time.Second, "Request timeout when searching for new release")
+
 	return cmd
 }
 
@@ -39,24 +48,42 @@ func RunUpdate(ctx context.Context, opts *UpdateOptions) error {
 	logger := log.WithContext(ctx)
 	logger.Info("Checking if any new version is available...")
 
-	resolver, err := goupdater.NewGithubWithContext(ctx, goupdater.GithubOpts{
-		Owner: githubOwner,
-		Repo:  githubRepo,
-	})
+	resolver := updater.NewGithubClient(
+		githubOwner,
+		githubRepo,
+		"",
+		updater.StableRelease,
+		func(asset string) bool {
+			matchesFilter := strings.Contains(asset, fmt.Sprintf("_%s_%s", runtime.GOOS, runtime.GOARCH))
+
+			logger.WithFields(logrus.Fields{
+				"asset":    asset,
+				"filtered": matchesFilter,
+			}).Debug("Filtering release asset")
+
+			return matchesFilter
+		},
+		opts.timeout,
+	)
+
+	updateTo, err := updater.LatestRelease(resolver)
+	if rootErr := errors.Unwrap(err); rootErr == updater.ErrNoRepository {
+		return fmt.Errorf("unable to acceess %s/%s repository", githubOwner, githubRepo)
+	}
 	if err != nil {
-		return errwrap.Wrapf("could not create the updater client: {{err}}", err)
+		return fmt.Errorf("could not retrieve release for update: %w", err)
 	}
 
-	updated, err := goupdater.UpdateWithContext(ctx, resolver, version)
-	if err != nil {
-		return errwrap.Wrapf("could not update the binary: {{err}}", err)
+	if updateTo.Name == version {
+		logger.Infof("You already have the latest version of %s/%s", githubOwner, githubRepo)
+		return nil
 	}
 
-	if updated {
-		logger.Infof("You are now using the latest version of %s", githubRepo)
-	} else {
-		logger.Infof("You already have the latest version of %s", githubRepo)
+	if err := updater.SelfUpdate(updateTo); err != nil {
+		return fmt.Errorf("could not update release to version %q", updateTo.Name)
 	}
+
+	logger.Infof("Updated to the version %s", updateTo.Name)
 
 	return nil
 }
