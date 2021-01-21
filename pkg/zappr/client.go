@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/dghubble/sling"
-	"github.com/hashicorp/errwrap"
 )
 
 // Client represents a zappr client
@@ -68,17 +67,17 @@ func New(zapprURL string, githubToken string, httpClient *http.Client) Client {
 func (c *clientImpl) Enable(repoID int) error {
 	req, err := c.slingClient.Get(fmt.Sprintf("/api/repos/%d?autoSync=true", repoID)).Request()
 	if err != nil {
-		return errwrap.Wrapf("could not fetch repo on zappr to enable approval check: {{err}}", err)
+		return fmt.Errorf("could not fetch repo on zappr to enable approval check: %w", err)
 	}
 
 	status, zapprErrorResponse, err := c.doRequest(req, nil)
 	if err != nil {
-		return errwrap.Wrapf("could not fetch repo on zappr to enable approval check: {{err}}", err)
+		return fmt.Errorf("could not fetch repo on zappr to enable approval check: %w", err)
 	}
 
 	req, err = c.slingClient.Put(fmt.Sprintf("%d/approval", repoID)).Request()
 	if err != nil {
-		return errwrap.Wrapf("could not Enable Zappr approval checks on repo: {{err}}", err)
+		return fmt.Errorf("could not Enable Zappr approval checks on repo: %w", err)
 	}
 
 	status, zapprErrorResponse, err = c.doRequest(req, nil)
@@ -96,17 +95,17 @@ func (c *clientImpl) Enable(repoID int) error {
 func (c *clientImpl) Disable(repoID int) error {
 	req, err := c.slingClient.Get(fmt.Sprintf("/api/repos/%d?autoSync=true", repoID)).Request()
 	if err != nil {
-		return errwrap.Wrapf("could not fetch repo on zappr to enable approval check: {{err}}", err)
+		return fmt.Errorf("could not fetch repo on zappr to enable approval check: %w", err)
 	}
 
 	status, zapprErrorResponse, err := c.doRequest(req, nil)
 	if err != nil {
-		return errwrap.Wrapf("could not fetch repo on zappr to enable approval check: {{err}}", err)
+		return fmt.Errorf("could not fetch repo on zappr to enable approval check: %w", err)
 	}
 
 	req, err = c.slingClient.Delete(fmt.Sprintf("%d/approval", repoID)).Request()
 	if err != nil {
-		return errwrap.Wrapf("could not Disable Zappr approval checks on repo: {{err}}", err)
+		return fmt.Errorf("could not Disable Zappr approval checks on repo: %w", err)
 	}
 
 	status, zapprErrorResponse, err = c.doRequest(req, nil)
@@ -128,13 +127,13 @@ func (c *clientImpl) Disable(repoID int) error {
 func (c *clientImpl) ImpersonateGitHubApp() error {
 	req, err := c.slingClient.Get("api/apptoken").Request()
 	if err != nil {
-		return errwrap.Wrapf("could not fetch github token for zappr github app: {{err}}", err)
+		return fmt.Errorf("could not fetch github token for zappr github app: %w", err)
 	}
 
 	tokenResponse := &zapprAppTokenResponse{}
 	_, _, err = c.doRequest(req, tokenResponse)
 	if err != nil {
-		return errwrap.Wrapf("could not fetch github token for zappr github app: {{err}}", err)
+		return fmt.Errorf("could not fetch github token for zappr github app: %w", err)
 	}
 
 	c.githubZapprAppToken = tokenResponse.Token
@@ -154,7 +153,7 @@ func (c *clientImpl) doRequest(req *http.Request, response interface{}) (int, *z
 	if resp == nil {
 		// Even though 0 does not seem like a valid http response code
 		// The status would be ignored by any calling code anyway since a non-nil error is returned
-		return 0, nil, errwrap.Wrap(ErrZapprServerError, err)
+		return 0, nil, fmt.Errorf("%s: %w", ErrZapprServerError.Error(), err)
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized {
@@ -163,10 +162,10 @@ func (c *clientImpl) doRequest(req *http.Request, response interface{}) (int, *z
 
 	if resp.StatusCode >= 400 {
 		if err == nil {
-			return resp.StatusCode, zapprErrorResponse, errwrap.Wrap(errors.New(zapprErrorResponse.Detail), ErrZapprServerError)
+			return resp.StatusCode, zapprErrorResponse, fmt.Errorf("%s: %w", ErrZapprServerError.Error(), errors.New(zapprErrorResponse.Detail))
 		}
 
-		return resp.StatusCode, nil, errwrap.Wrap(ErrZapprServerError, err)
+		return resp.StatusCode, nil, fmt.Errorf("%s: %w", ErrZapprServerError.Error(), err)
 	}
 
 	return resp.StatusCode, nil, err

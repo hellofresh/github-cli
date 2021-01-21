@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hashicorp/errwrap"
-	"github.com/hellofresh/github-cli/pkg/log"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
+
+	"github.com/hellofresh/github-cli/pkg/log"
 )
 
 type (
@@ -110,13 +110,13 @@ func NewContext(ctx context.Context, configFile string) (context.Context, error)
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		return ctx, errwrap.Wrapf("could not read configurations: {{err}}", err)
+		return ctx, fmt.Errorf("could not read configurations: %w", err)
 	}
 
 	config := Spec{}
 	err = viper.Unmarshal(&config)
 	if err != nil {
-		return ctx, errwrap.Wrapf("could not unmarshal config file: {{err}}", err)
+		return ctx, fmt.Errorf("could not unmarshal config file: %w", err)
 	}
 
 	return context.WithValue(ctx, configKey, &config), nil

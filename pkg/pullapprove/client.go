@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/dghubble/sling"
-	"github.com/hashicorp/errwrap"
 )
 
 type (
@@ -44,7 +43,7 @@ func (c *Client) Create(name string, org string) error {
 
 	req, err := c.client.Post(path).BodyJSON(&cr).Request()
 	if err != nil {
-		return errwrap.Wrapf("could not create the request to pull approve: {{err}}", err)
+		return fmt.Errorf("could not create the request to pull approve: %w", err)
 	}
 
 	return c.doRequest(req)
@@ -55,7 +54,7 @@ func (c *Client) Delete(name string, org string) error {
 	path := fmt.Sprintf("orgs/%s/%s/delete", org, name)
 	req, err := c.client.Post(path).Request()
 	if err != nil {
-		return errwrap.Wrapf("could not delete the request from pull approve: {{err}}", err)
+		return fmt.Errorf("could not delete the request from pull approve: %w", err)
 	}
 
 	return c.doRequest(req)

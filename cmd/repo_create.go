@@ -3,19 +3,20 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
-
-	"github.com/hellofresh/github-cli/pkg/zappr"
+	"strings"
 
 	"github.com/google/go-github/v33/github"
-	"github.com/hashicorp/errwrap"
+	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/hellofresh/github-cli/pkg/config"
 	gh "github.com/hellofresh/github-cli/pkg/github"
 	"github.com/hellofresh/github-cli/pkg/log"
 	"github.com/hellofresh/github-cli/pkg/pullapprove"
 	"github.com/hellofresh/github-cli/pkg/repo"
-	"github.com/spf13/cobra"
-	"golang.org/x/sync/errgroup"
+	"github.com/hellofresh/github-cli/pkg/zappr"
 )
 
 // CreateRepoOptions are the flags for the create repository command
@@ -127,20 +128,20 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 		HasPages:    github.Bool(opts.HasPages),
 		AutoInit:    github.Bool(true),
 	})
-	if errwrap.Contains(err, repo.ErrRepositoryAlreadyExists.Error()) {
+	if err == repo.ErrRepositoryAlreadyExists {
 		logger.Info("Repository already exists. Trying to normalize it...")
 	} else if err != nil {
-		return errwrap.Wrapf("could not create repository: {{err}}", err)
+		return fmt.Errorf("could not create repository: %w", err)
 	}
 
 	if opts.HasPullApprove {
 		wg.Go(func() error {
 			logger.Info("Adding pull approve...")
 			err = creator.AddPullApprove(ctx, repoName, org, githubOpts.PullApprove)
-			if errwrap.Contains(err, repo.ErrPullApproveFileAlreadyExists.Error()) {
+			if err == repo.ErrPullApproveFileAlreadyExists {
 				logger.Debug("Pull approve already exists, moving on...")
 			} else if err != nil {
-				return errwrap.Wrapf("could not add pull approve: {{err}}", err)
+				return fmt.Errorf("could not add pull approve: %w", err)
 			}
 
 			return nil
@@ -156,7 +157,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 				ghRepo, _, err = githubClient.Repositories.Get(ctx, org, repoName)
 
 				if err != nil {
-					return errwrap.Wrapf("information required to enable zappr on github repo was not found: {{err}}", err)
+					return fmt.Errorf("information required to enable zappr on github repo was not found: %w", err)
 				}
 			}
 
@@ -167,19 +168,19 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 				logger.Debug("Retrieving token for zappr github app from zappr")
 				err = zapprClient.ImpersonateGitHubApp()
 				if err != nil {
-					if errwrap.Contains(err, zappr.ErrZapprUnauthorized.Error()) {
-						return errwrap.Wrapf("could not retrieve token representing github zappr app from zappr. it seems you have not logged in to zappr, if you have, please logout from zappr, log back in and try again: {{err}}", err)
+					if errors.Is(err, zappr.ErrZapprUnauthorized) {
+						return fmt.Errorf("could not retrieve token representing github zappr app from zappr. it seems you have not logged in to zappr, if you have, please logout from zappr, log back in and try again: %w", err)
 					}
 
-					return errwrap.Wrapf("could not retrieve token representing github zappr app from zappr: {{err}}", err)
+					return fmt.Errorf("could not retrieve token representing github zappr app from zappr: %w", err)
 				}
 			}
 
 			err = zapprClient.Enable(int(*ghRepo.ID))
-			if errwrap.Contains(err, zappr.ErrZapprAlreadyEnabled.Error()) {
+			if errors.Is(err, zappr.ErrZapprAlreadyEnabled) {
 				logger.Debug("Zappr already enabled, moving on...")
 			} else if err != nil {
-				return errwrap.Wrapf("could not enable zappr: {{err}}", err)
+				return fmt.Errorf("could not enable zappr: %w", err)
 			}
 
 			return nil
@@ -191,7 +192,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 			logger.Info("Adding teams to repository...")
 			err = creator.AddTeamsToRepo(ctx, repoName, org, githubOpts.Teams)
 			if err != nil {
-				return errwrap.Wrapf("could not add teams to repository: {{err}}", err)
+				return fmt.Errorf("could not add teams to repository: %w", err)
 			}
 
 			return nil
@@ -202,7 +203,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 		wg.Go(func() error {
 			logger.Info("Adding collaborators to repository...")
 			if err = creator.AddCollaborators(ctx, repoName, org, githubOpts.Collaborators); err != nil {
-				return errwrap.Wrapf("could not add collaborators to repository: {{err}}", err)
+				return fmt.Errorf("could not add collaborators to repository: %w", err)
 			}
 
 			return nil
@@ -212,11 +213,13 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 	if opts.HasLabels {
 		wg.Go(func() error {
 			logger.Info("Adding labels to repository...")
-			err = creator.AddLabelsToRepo(ctx, repoName, org, githubOpts.Labels)
-			if errwrap.Contains(err, repo.ErrLabeAlreadyExists.Error()) {
-				logger.Debug("Labels already exists, moving on...")
-			} else if err != nil {
-				return errwrap.Wrapf("could not add labels to repository: {{err}}", err)
+			if err := creator.AddLabelsToRepo(ctx, repoName, org, githubOpts.Labels); err != nil {
+				if strings.Contains(err.Error(), repo.ErrLabeAlreadyExists.Error()) {
+					logger.Debug("Labels already exists, moving on...")
+					return nil
+				}
+
+				return fmt.Errorf("could not add labels to repository: %w", err)
 			}
 
 			return nil
@@ -226,11 +229,12 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 	if opts.HasWebhooks {
 		wg.Go(func() error {
 			logger.Info("Adding webhooks to repository...")
-			err = creator.AddWebhooksToRepo(ctx, repoName, org, githubOpts.Webhooks)
-			if errwrap.Contains(err, repo.ErrWebhookAlreadyExist.Error()) {
-				logger.Debug("Webhook already exists, moving on...")
-			} else if err != nil {
-				return errwrap.Wrapf("could not add webhooks to repository: {{err}}", err)
+			if err := creator.AddWebhooksToRepo(ctx, repoName, org, githubOpts.Webhooks); err != nil {
+				if strings.Contains(err.Error(), repo.ErrWebhookAlreadyExist.Error()) {
+					logger.Debug("Webhook already exists, moving on...")
+					return nil
+				}
+				return fmt.Errorf("could not add webhooks to repository: %w", err)
 			}
 
 			return nil
@@ -241,7 +245,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 		wg.Go(func() error {
 			logger.Info("Adding branch protections to repository...")
 			if err = creator.AddBranchProtections(ctx, repoName, org, githubOpts.BranchProtections); err != nil {
-				return errwrap.Wrapf("could not add branch protections to repository: {{err}}", err)
+				return fmt.Errorf("could not add branch protections to repository: %w", err)
 			}
 
 			return nil

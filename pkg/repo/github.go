@@ -8,7 +8,8 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v33/github"
-	multierror "github.com/hashicorp/go-multierror"
+	multiError "github.com/hashicorp/go-multierror"
+
 	"github.com/hellofresh/github-cli/pkg/config"
 	"github.com/hellofresh/github-cli/pkg/pullapprove"
 )
@@ -59,7 +60,7 @@ var (
 	// ErrOrganizationNotFound is used when a webhook already exists
 	ErrOrganizationNotFound = errors.New("you must specify an organization to use this functionality")
 	// ErrPullApproveClientNotSet is used when the PA client is nil
-	ErrPullApproveClientNotSet = errors.New("Cannot add pull approve, since the client is nil")
+	ErrPullApproveClientNotSet = errors.New("cannot add pull approve, since the client is nil")
 )
 
 // NewGithub creates a new instance of Client
@@ -129,7 +130,7 @@ func (c *GithubRepo) AddTeamsToRepo(ctx context.Context, repo string, org string
 		}
 
 		if _, ghErr := c.GithubClient.Teams.AddTeamRepoByID(ctx, orgInfo.GetID(), int64(team.ID), "", repo, opt); ghErr != nil {
-			err = multierror.Append(err, ghErr)
+			err = multiError.Append(err, ghErr)
 		}
 	}
 
@@ -151,7 +152,7 @@ func (c *GithubRepo) AddLabelsToRepo(ctx context.Context, repo string, org strin
 		if _, _, ghErr := c.GithubClient.Issues.CreateLabel(ctx, org, repo, githubLabel); ghErr != nil {
 			if internalErr, ok := ghErr.(*github.ErrorResponse); ok {
 				if internalErr.Response.StatusCode == http.StatusUnprocessableEntity {
-					err = multierror.Append(err, ErrLabeAlreadyExists)
+					err = multiError.Append(err, ErrLabeAlreadyExists)
 				}
 			}
 		}
@@ -162,7 +163,7 @@ func (c *GithubRepo) AddLabelsToRepo(ctx context.Context, repo string, org strin
 			if _, ghErr := c.GithubClient.Issues.DeleteLabel(ctx, org, repo, label); ghErr != nil {
 				if internalErr, ok := ghErr.(*github.ErrorResponse); ok {
 					if internalErr.Response.StatusCode == http.StatusNotFound {
-						err = multierror.Append(err, ErrLabelNotFound)
+						err = multiError.Append(err, ErrLabelNotFound)
 					}
 				}
 			}
@@ -183,7 +184,7 @@ func (c *GithubRepo) AddWebhooksToRepo(ctx context.Context, repo string, org str
 		_, _, err = c.GithubClient.Repositories.CreateHook(ctx, org, repo, hook)
 		if ghErr, ok := err.(*github.ErrorResponse); ok {
 			if ghErr.Response.StatusCode == http.StatusUnprocessableEntity {
-				err = multierror.Append(err, ErrWebhookAlreadyExist)
+				err = multiError.Append(err, ErrWebhookAlreadyExist)
 			}
 		}
 	}
@@ -202,7 +203,7 @@ func (c *GithubRepo) AddBranchProtections(ctx context.Context, repo string, org 
 			},
 		}
 		if _, _, ghErr := c.GithubClient.Repositories.UpdateBranchProtection(ctx, org, repo, branch, pr); ghErr != nil {
-			err = multierror.Append(err, ghErr)
+			err = multiError.Append(err, ghErr)
 		}
 	}
 
@@ -219,7 +220,7 @@ func (c *GithubRepo) AddCollaborators(ctx context.Context, repo string, org stri
 		}
 
 		if _, _, ghErr := c.GithubClient.Repositories.AddCollaborator(ctx, org, repo, collaborator.Username, opt); ghErr != nil {
-			err = multierror.Append(err, ghErr)
+			err = multiError.Append(err, ghErr)
 		}
 	}
 

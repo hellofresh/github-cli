@@ -3,16 +3,17 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"time"
 
 	"github.com/google/go-github/v33/github"
-	"github.com/hashicorp/errwrap"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
 	"github.com/hellofresh/github-cli/pkg/config"
 	gh "github.com/hellofresh/github-cli/pkg/github"
 	"github.com/hellofresh/github-cli/pkg/log"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -66,11 +67,11 @@ func RunUnseat(ctx context.Context, opts *UnseatOpts) error {
 	logger.Info("Fetching repositories...")
 	allRepos, err := fetchAllRepos(ctx, org, opts.ReposPerPage, opts.Page)
 	if err != nil {
-		return errwrap.Wrapf("could not retrieve repositories: {{err}}", err)
+		return fmt.Errorf("could not retrieve repositories: %w", err)
 	}
 	logger.Infof("%d repositories fetched!", len(allRepos))
 
-	logger.Info("Removing outside colaborators...")
+	logger.Info("Removing outside collaborators...")
 	for _, repo := range allRepos {
 		if isRepoInactive(repo) {
 			continue
@@ -82,7 +83,7 @@ func RunUnseat(ctx context.Context, opts *UnseatOpts) error {
 			Affiliation: "outside",
 		})
 		if err != nil {
-			return errwrap.Wrapf("could not retrieve outside collaborators: {{err}}", err)
+			return fmt.Errorf("could not retrieve outside collaborators: %w", err)
 		}
 
 		for _, collaborator := range outsideCollaborators {
@@ -92,7 +93,7 @@ func RunUnseat(ctx context.Context, opts *UnseatOpts) error {
 			}).Info("Deleting outside collaborators")
 			_, err := githubClient.Repositories.RemoveCollaborator(ctx, org, repoName, collaborator.GetLogin())
 			if err != nil {
-				return errwrap.Wrapf("could not unseat outside collaborator: {{err}}", err)
+				return fmt.Errorf("could not unseat outside collaborator: %w", err)
 			}
 
 			unseatedCollaborators++

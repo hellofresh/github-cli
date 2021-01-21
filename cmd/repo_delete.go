@@ -3,14 +3,15 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
-	"github.com/hashicorp/errwrap"
+	"github.com/spf13/cobra"
+
 	"github.com/hellofresh/github-cli/pkg/config"
 	gh "github.com/hellofresh/github-cli/pkg/github"
 	"github.com/hellofresh/github-cli/pkg/log"
 	"github.com/hellofresh/github-cli/pkg/zappr"
-	"github.com/spf13/cobra"
 )
 
 type (
@@ -52,28 +53,28 @@ func RunDeleteRepo(ctx context.Context, name string, opts *DeleteRepoOpts) error
 
 	if err != nil {
 		if strings.Contains(err.Error(), "404 Not Found") {
-			return errwrap.Wrapf("Github repo does not exist or you do not have access: {{err}}", err)
+			return fmt.Errorf("github repo does not exist or you do not have access: %w", err)
 		}
 
-		return errwrap.Wrapf("information required to disable zappr on github repo was not found: {{err}}", err)
+		return fmt.Errorf("information required to disable zappr on github repo was not found: %w", err)
 	}
 
 	var zapprClient zappr.Client
 	zapprClient = zappr.New(cfg.Zappr.URL, cfg.Github.Token, nil)
 
 	logger.Debug("Disabling Zappr on repo...")
-	err = zapprClient.Disable(int(*ghRepo.ID))
-	if errwrap.Contains(err, zappr.ErrZapprAlreadyNotEnabled.Error()) {
+	if err := zapprClient.Disable(int(*ghRepo.ID)); err != nil {
+		if !strings.Contains(err.Error(), zappr.ErrZapprAlreadyNotEnabled.Error()) {
+			return fmt.Errorf("could not disable zappr: %w", err)
+		}
 		logger.Debug("zappr already not enabled, moving on...")
-	} else if err != nil {
-		return errwrap.Wrapf("could not disable zappr: {{err}}", err)
 	} else {
 		logger.Debug("Zappr disabled")
 	}
 
 	_, err = githubClient.Repositories.Delete(ctx, org, name)
 	if err != nil {
-		return errwrap.Wrapf("Could not delete repository: {{err}}", err)
+		return fmt.Errorf("could not delete repository: %w", err)
 	}
 
 	logger.Infof("Repository %s deleted!", name)
