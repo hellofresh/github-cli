@@ -3,10 +3,10 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/google/go-github/v33/github"
-	"github.com/hashicorp/errwrap"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 
@@ -111,10 +111,10 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 		HasPages:    github.Bool(opts.HasPages),
 		AutoInit:    github.Bool(true),
 	})
-	if errwrap.Contains(err, repo.ErrRepositoryAlreadyExists.Error()) {
+	if errors.Is(err, repo.ErrRepositoryAlreadyExists) {
 		logger.Info("Repository already exists. Trying to normalize it...")
 	} else if err != nil {
-		return errwrap.Wrapf("could not create repository: {{err}}", err)
+		return fmt.Errorf("could not create repository: %w", err)
 	}
 
 	if opts.HasTeams {
@@ -122,7 +122,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 			logger.Info("Adding teams to repository...")
 			err = creator.AddTeamsToRepo(ctx, repoName, org, githubOpts.Teams)
 			if err != nil {
-				return errwrap.Wrapf("could not add teams to repository: {{err}}", err)
+				return fmt.Errorf("could not add teams to repository: %w", err)
 			}
 
 			return nil
@@ -133,7 +133,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 		wg.Go(func() error {
 			logger.Info("Adding collaborators to repository...")
 			if err = creator.AddCollaborators(ctx, repoName, org, githubOpts.Collaborators); err != nil {
-				return errwrap.Wrapf("could not add collaborators to repository: {{err}}", err)
+				return fmt.Errorf("could not add collaborators to repository: %w", err)
 			}
 
 			return nil
@@ -144,10 +144,10 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 		wg.Go(func() error {
 			logger.Info("Adding labels to repository...")
 			err = creator.AddLabelsToRepo(ctx, repoName, org, githubOpts.Labels)
-			if errwrap.Contains(err, repo.ErrLabeAlreadyExists.Error()) {
+			if errors.Is(err, repo.ErrLabeAlreadyExists) {
 				logger.Debug("Labels already exists, moving on...")
 			} else if err != nil {
-				return errwrap.Wrapf("could not add labels to repository: {{err}}", err)
+				return fmt.Errorf("could not add labels to repository: %w", err)
 			}
 
 			return nil
@@ -158,10 +158,10 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 		wg.Go(func() error {
 			logger.Info("Adding webhooks to repository...")
 			err = creator.AddWebhooksToRepo(ctx, repoName, org, githubOpts.Webhooks)
-			if errwrap.Contains(err, repo.ErrWebhookAlreadyExist.Error()) {
+			if errors.Is(err, repo.ErrWebhookAlreadyExist) {
 				logger.Debug("Webhook already exists, moving on...")
 			} else if err != nil {
-				return errwrap.Wrapf("could not add webhooks to repository: {{err}}", err)
+				return fmt.Errorf("could not add webhooks to repository: %w", err)
 			}
 
 			return nil
@@ -172,7 +172,7 @@ func RunCreateRepo(ctx context.Context, repoName string, opts *CreateRepoOptions
 		wg.Go(func() error {
 			logger.Info("Adding branch protections to repository...")
 			if err = creator.AddBranchProtections(ctx, repoName, org, githubOpts.BranchProtections); err != nil {
-				return errwrap.Wrapf("could not add branch protections to repository: {{err}}", err)
+				return fmt.Errorf("could not add branch protections to repository: %w", err)
 			}
 
 			return nil
