@@ -10,12 +10,12 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/google/go-github/v33/github"
-	"github.com/hashicorp/errwrap"
+	"github.com/spf13/cobra"
+
 	"github.com/hellofresh/github-cli/pkg/config"
 	gh "github.com/hellofresh/github-cli/pkg/github"
 	"github.com/hellofresh/github-cli/pkg/log"
 	"github.com/hellofresh/github-cli/pkg/repo"
-	"github.com/spf13/cobra"
 )
 
 type (
@@ -38,11 +38,11 @@ func NewHiringSendCmd(ctx context.Context) *cobra.Command {
 		},
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 || args[0] == "" {
-				return errors.New("Please provide a github username for the candidate")
+				return errors.New("please provide a github username for the candidate")
 			}
 
 			if len(args) < 2 || args[1] == "" {
-				return errors.New("Please provide which repository test")
+				return errors.New("please provide which repository test")
 			}
 
 			return nil
@@ -80,19 +80,19 @@ func RunCreateTestRepo(ctx context.Context, candidate string, testRepo string, r
 		HasWiki:   github.Bool(false),
 	})
 	if err != nil {
-		return errwrap.Wrapf("could not create github repo for candidate: {{err}}", err)
+		return fmt.Errorf("could not create github repo for candidate: %w", err)
 	}
 
 	logger.Infof("Adding %s as collaborator to %s/%s", candidate, org, target)
 	collaboratorsOpts := []*config.Collaborator{
-		&config.Collaborator{
+		{
 			Username:   candidate,
 			Permission: "push",
 		},
 	}
 	err = creator.AddCollaborators(ctx, target, org, collaboratorsOpts)
 	if err != nil {
-		return errwrap.Wrapf("could not add collaborators to repository: {{err}}", err)
+		return fmt.Errorf("could not add collaborators to repository: %w", err)
 	}
 
 	logger.Info("Cloning repository...")
@@ -102,7 +102,7 @@ func RunCreateTestRepo(ctx context.Context, candidate string, testRepo string, r
 		ReferenceName: reference,
 	})
 	if err != nil {
-		return errwrap.Wrapf("error cloning to repository: {{err}}", err)
+		return fmt.Errorf("error cloning to repository: %w", err)
 	}
 
 	logger.Debugf("Repository %s/%s cloned", org, testRepo)
@@ -110,7 +110,7 @@ func RunCreateTestRepo(ctx context.Context, candidate string, testRepo string, r
 	logger.Info("Changing remote...")
 	remote, err := r.Remote(git.DefaultRemoteName)
 	if err != nil {
-		return errwrap.Wrapf("error changing remote for repository: {{err}}", err)
+		return fmt.Errorf("error changing remote for repository: %w", err)
 	}
 
 	logger.Debugf("Remote on %s/%s changed to %s", org, testRepo, git.DefaultRemoteName)
@@ -122,7 +122,7 @@ func RunCreateTestRepo(ctx context.Context, candidate string, testRepo string, r
 		Progress:   os.Stdout,
 	})
 	if err != nil {
-		return errwrap.Wrapf("error pushing to repository: {{err}}", err)
+		return fmt.Errorf("error pushing to repository: %w", err)
 	}
 
 	logger.Infof("Done! Hiring test for %s is created", candidate)

@@ -3,9 +3,9 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/spf13/cobra"
 
 	"github.com/hellofresh/github-cli/pkg/config"
@@ -52,15 +52,15 @@ func RunDeleteRepo(ctx context.Context, name string, opts *DeleteRepoOpts) error
 
 	if err != nil {
 		if strings.Contains(err.Error(), "404 Not Found") {
-			return errwrap.Wrapf("Github repo does not exist or you do not have access: {{err}}", err)
+			return fmt.Errorf("github repo does not exist or you do not have access: %w", err)
 		}
 
-		return errwrap.Wrapf("unexpected error when tried to get a repository info: {{err}}", err)
+		return fmt.Errorf("unexpected error when tried to get a repository info: %w", err)
 	}
 
 	_, err = githubClient.Repositories.Delete(ctx, org, name)
 	if err != nil {
-		return errwrap.Wrapf("Could not delete repository: {{err}}", err)
+		return fmt.Errorf("could not delete repository: %w", err)
 	}
 
 	logger.Infof("Repository %s deleted!", name)
