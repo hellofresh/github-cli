@@ -2,14 +2,6 @@
 # looks in your ssh folder for a file called `id_rsa`
 # PublicKeyPath = ~/.ssh/id_rsa
 
-# Zappr Config
-[zappr]
-    # Defines the url for Zappr. Comment it out to load it from ZAPPR_URL environment variable
-    URL="https://zappr.domain.com"
-
-    # Specifies if calls made by Zappr to Github should use its own Client token or yours. Comment it out to load it from ZAPPR_USE_APP_CREDENTIALS environment variable
-    UseZapprGithubCredentials="true"
-
 [github]
     # Defines the github organization
     Organization="hellofresh"
@@ -51,7 +43,7 @@
     ]
 
     # Defines branch protections
-    Protections={master=["zappr"]}
+    Protections={}
 
 [githubtestorg]
     # Defines the github test organization

@@ -27,10 +27,6 @@ First of all we have to create a configuration file that will customise how our 
 
 You will need to fill in the following values to be able to create a repo:
 
-### Zappr `zappr`
-
-For Zappr you will need to specify the URL to Zappr, the URL is the base URL of Zappr, its typically `https://zappr.tools-k8s.hellofresh.io`.
-
 ### GitHub `github`
 
 GitHub needs a [token](https://github.com/settings/tokens/new) with repo access. You can add additional collaborators and/or teams, the teams are defined by ID and the ID can be found with this simple cURL:
