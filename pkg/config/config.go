@@ -18,21 +18,6 @@ type (
 	Spec struct {
 		Github        Github
 		GithubTestOrg Github
-		PullApprove   PullApprove
-		Zappr         Zappr
-	}
-
-	// PullApprove represents teh Pull Approve configurations
-	PullApprove struct {
-		Token               string
-		Filename            string
-		ProtectedBranchName string
-	}
-
-	// Zappr represents Zappr configurations
-	Zappr struct {
-		URL                       string
-		UseZapprGithubCredentials bool
 	}
 
 	// Github represents the github configurations
@@ -103,10 +88,6 @@ func NewContext(ctx context.Context, configFile string) (context.Context, error)
 
 	viper.SetDefault("github.token", os.Getenv("GITHUB_TOKEN"))
 	viper.SetDefault("githubtestorg.token", os.Getenv("GITHUB_TOKEN"))
-
-	viper.SetDefault("zappr.url", os.Getenv("ZAPPR_URL"))
-	viper.SetDefault("zappr.usezapprgithubcredentials", true)
-	viper.BindEnv("ZAPPR_USE_APP_CREDENTIALS", "zappr.usezapprgithubcredentials")
 
 	err := viper.ReadInConfig()
 	if err != nil {

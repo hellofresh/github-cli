@@ -3,14 +3,13 @@ package repo
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/google/go-github/v33/github"
 	multierror "github.com/hashicorp/go-multierror"
+
 	"github.com/hellofresh/github-cli/pkg/config"
-	"github.com/hellofresh/github-cli/pkg/pullapprove"
 )
 
 type (
@@ -21,19 +20,11 @@ type (
 
 	// GithubRepoOpts represents the repo creation options
 	GithubRepoOpts struct {
-		PullApprove       *PullApproveOpts
 		Teams             []*config.Team
 		Collaborators     []*config.Collaborator
 		Labels            *LabelsOpts
 		Webhooks          []*config.Webhook
 		BranchProtections config.BranchProtections
-	}
-
-	// PullApproveOpts represents pull approve options
-	PullApproveOpts struct {
-		Client              *pullapprove.Client
-		Filename            string
-		ProtectedBranchName string
 	}
 
 	// LabelsOpts represents label options
@@ -48,8 +39,6 @@ var (
 	ErrRepositoryAlreadyExists = errors.New("github repository already exists")
 	// ErrRepositoryLimitExceeded is used when the repository limit is exceeded
 	ErrRepositoryLimitExceeded = errors.New("limit for private repos on this account is exceeded")
-	// ErrPullApproveFileAlreadyExists is used when the pull approve file already exists
-	ErrPullApproveFileAlreadyExists = errors.New("github pull approve file already exists")
 	// ErrLabelNotFound is used when a label is not found
 	ErrLabelNotFound = errors.New("github label does not exist")
 	// ErrLabeAlreadyExists is used when a label is not found
@@ -58,8 +47,6 @@ var (
 	ErrWebhookAlreadyExist = errors.New("github webhook already exists")
 	// ErrOrganizationNotFound is used when a webhook already exists
 	ErrOrganizationNotFound = errors.New("you must specify an organization to use this functionality")
-	// ErrPullApproveClientNotSet is used when the PA client is nil
-	ErrPullApproveClientNotSet = errors.New("Cannot add pull approve, since the client is nil")
 )
 
 // NewGithub creates a new instance of Client
@@ -81,33 +68,6 @@ func (c *GithubRepo) CreateRepo(ctx context.Context, org string, repoOpts *githu
 	}
 
 	return ghRepo, err
-}
-
-// AddPullApprove adds a file to the github repository and calls pull approve API to register the new repo
-func (c *GithubRepo) AddPullApprove(ctx context.Context, repo string, org string, opts *PullApproveOpts) error {
-	if opts.Client == nil {
-		return ErrPullApproveClientNotSet
-	}
-
-	fileOpt := &github.RepositoryContentFileOptions{
-		Message: github.String("Initialize repository :tada:"),
-		Content: []byte(fmt.Sprintf("extends: %s", org)),
-		Branch:  github.String(opts.ProtectedBranchName),
-	}
-	_, _, err := c.GithubClient.Repositories.CreateFile(ctx, org, repo, opts.Filename, fileOpt)
-	if githubError, ok := err.(*github.ErrorResponse); ok {
-		if githubError.Response.StatusCode == http.StatusUnprocessableEntity {
-			return ErrPullApproveFileAlreadyExists
-		}
-		return err
-	}
-
-	err = opts.Client.Create(repo, org)
-	if err != nil {
-		return err
-	}
-
-	return err
 }
 
 // AddTeamsToRepo adds an slice of teams and their permissions to a repository
