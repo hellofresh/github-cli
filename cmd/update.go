@@ -8,10 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hellofresh/updater-go/v2"
+	"github.com/hellofresh/updater-go/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/hellofresh/github-cli/pkg/config"
 	"github.com/hellofresh/github-cli/pkg/log"
 )
 
@@ -48,14 +49,16 @@ func RunUpdate(ctx context.Context, opts *UpdateOptions) error {
 	logger := log.WithContext(ctx)
 	logger.Info("Checking if any new version is available...")
 
+	cfg := config.WithContext(ctx)
+
 	resolver := updater.NewGithubClient(
+		ctx,
 		githubOwner,
 		githubRepo,
-		"",
+		cfg.Github.Token,
 		updater.StableRelease,
 		func(asset string) bool {
 			matchesFilter := strings.Contains(asset, fmt.Sprintf("_%s_%s", runtime.GOOS, runtime.GOARCH))
-
 			logger.WithFields(logrus.Fields{
 				"asset":    asset,
 				"filtered": matchesFilter,
@@ -66,7 +69,7 @@ func RunUpdate(ctx context.Context, opts *UpdateOptions) error {
 		opts.timeout,
 	)
 
-	updateTo, err := updater.LatestRelease(resolver)
+	updateTo, err := updater.LatestRelease(ctx, resolver)
 	if rootErr := errors.Unwrap(err); rootErr == updater.ErrNoRepository {
 		return fmt.Errorf("unable to acceess %s/%s repository", githubOwner, githubRepo)
 	}
@@ -79,7 +82,7 @@ func RunUpdate(ctx context.Context, opts *UpdateOptions) error {
 		return nil
 	}
 
-	if err := updater.SelfUpdate(updateTo); err != nil {
+	if err := updater.SelfUpdate(ctx, updateTo); err != nil {
 		return fmt.Errorf("could not update release to version %q", updateTo.Name)
 	}
 
